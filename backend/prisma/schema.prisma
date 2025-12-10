@@ -1,0 +1,256 @@
+// Prisma schema for Between Sessions™ MVP
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  therapist
+  client
+  admin
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+  incomplete
+  incomplete_expired
+  unpaid
+}
+
+model users {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String   @unique
+  password_hash     String
+  role              UserRole
+  email_verified_at DateTime?
+  last_login_at     DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  therapist therapists?
+  client    clients?
+
+  sessions  sessions[]
+  audit_logs audit_logs[]
+  notifications notifications[]
+}
+
+model therapists {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @unique @db.Uuid
+  full_name   String
+  organization String?
+  timezone    String   @default("UTC")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        users    @relation(fields: [user_id], references: [id])
+  clients     clients[]
+  prompts     prompts[]
+  assignments assignments[]
+  feedback    feedback[]
+  billing     billing_customers?
+  invoices    invoices[]
+  invites     invites[] @relation("TherapistInvites")
+}
+
+model clients {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @unique @db.Uuid
+  therapist_id String   @db.Uuid
+  full_name    String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  user         users       @relation(fields: [user_id], references: [id])
+  therapist    therapists  @relation(fields: [therapist_id], references: [id])
+  assignments  assignments[]
+  responses    responses[]
+  checkins     checkins[]
+  metrics_week metrics_client_weekly[]
+  accepted_invites invites[] @relation("AcceptedInviteClient")
+}
+
+model invites {
+  id            String     @id @default(uuid()) @db.Uuid
+  therapist_id  String     @db.Uuid
+  email         String
+  token         String     @unique
+  status        InviteStatus @default(pending)
+  expires_at    DateTime
+  accepted_client_id String? @db.Uuid
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  therapist       therapists @relation("TherapistInvites", fields: [therapist_id], references: [id])
+  accepted_client clients?   @relation("AcceptedInviteClient", fields: [accepted_client_id], references: [id])
+}
+
+model prompts {
+  id            String    @id @default(uuid()) @db.Uuid
+  therapist_id  String    @db.Uuid
+  title         String
+  content       String    // template text (non-PHI)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  therapist     therapists @relation(fields: [therapist_id], references: [id])
+  assignments   assignments[]
+}
+
+model assignments {
+  id            String    @id @default(uuid()) @db.Uuid
+  therapist_id  String    @db.Uuid
+  client_id     String    @db.Uuid
+  prompt_id     String    @db.Uuid
+  due_date      DateTime?
+  recurrence    String?   // e.g., daily, weekly
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  therapist     therapists @relation(fields: [therapist_id], references: [id])
+  client        clients    @relation(fields: [client_id], references: [id])
+  prompt        prompts    @relation(fields: [prompt_id], references: [id])
+  responses     responses[]
+}
+
+model responses {
+  id               String    @id @default(uuid()) @db.Uuid
+  assignment_id    String    @db.Uuid
+  client_id        String    @db.Uuid
+  text_cipher      Bytes     // AES-256-GCM ciphertext
+  text_nonce       Bytes     // IV/nonce
+  text_tag         Bytes     // auth tag
+  voice_storage_key String?  // reference to file storage key
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  assignment assignments @relation(fields: [assignment_id], references: [id])
+  client     clients     @relation(fields: [client_id], references: [id])
+  feedback   feedback[]
+}
+
+model feedback {
+  id            String   @id @default(uuid()) @db.Uuid
+  response_id   String   @db.Uuid
+  therapist_id  String   @db.Uuid
+  text_cipher   Bytes
+  text_nonce    Bytes
+  text_tag      Bytes
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  response   responses  @relation(fields: [response_id], references: [id])
+  therapist  therapists @relation(fields: [therapist_id], references: [id])
+}
+
+model checkins {
+  id           String   @id @default(uuid()) @db.Uuid
+  client_id    String   @db.Uuid
+  mood         Int      // 0-10
+  note_cipher  Bytes?
+  note_nonce   Bytes?
+  note_tag     Bytes?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  client clients @relation(fields: [client_id], references: [id])
+}
+
+model notifications {
+  id           String    @id @default(uuid()) @db.Uuid
+  user_id      String    @db.Uuid
+  type         String
+  data_cipher  Bytes?
+  data_nonce   Bytes?
+  data_tag     Bytes?
+  read_at      DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  user users @relation(fields: [user_id], references: [id])
+}
+
+model billing_customers {
+  id                     String   @id @default(uuid()) @db.Uuid
+  therapist_id           String   @unique @db.Uuid
+  stripe_customer_id     String?
+  stripe_subscription_id String?
+  status                 SubscriptionStatus? @default(trialing)
+  current_period_end     DateTime?
+  past_due_since         DateTime?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  therapist therapists @relation(fields: [therapist_id], references: [id])
+}
+
+model invoices {
+  id                 String   @id @default(uuid()) @db.Uuid
+  therapist_id       String   @db.Uuid
+  stripe_invoice_id  String?  @unique
+  amount_cents       Int
+  currency           String   @default("usd")
+  status             String
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  therapist therapists @relation(fields: [therapist_id], references: [id])
+}
+
+model audit_logs {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String?   @db.Uuid
+  action      String
+  entity_type String?
+  entity_id   String?
+  ip          String?
+  user_agent  String?
+  metadata    Json?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user users? @relation(fields: [user_id], references: [id])
+}
+
+model sessions {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  refresh_token String  @unique
+  valid        Boolean  @default(true)
+  last_seen_at DateTime?
+  ip           String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  user users @relation(fields: [user_id], references: [id])
+}
+
+model metrics_client_weekly {
+  id            String   @id @default(uuid()) @db.Uuid
+  client_id     String   @db.Uuid
+  week_start    DateTime
+  assignments_assigned Int @default(0)
+  responses_submitted  Int @default(0)
+  avg_mood      Float?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  client clients @relation(fields: [client_id], references: [id])
+  @@unique([client_id, week_start])
+}
