@@ -15,6 +15,8 @@ import { ResponsesModule } from './modules/responses/responses.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { CheckinsModule } from './modules/checkins/checkins.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { HealthModule } from './modules/health/health.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { ClientsModule } from './modules/clients/clients.module';
     ResponsesModule,
     FeedbackModule,
     CheckinsModule,
+    HealthModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [

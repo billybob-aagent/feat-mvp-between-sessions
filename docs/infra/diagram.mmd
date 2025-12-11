@@ -1,0 +1,36 @@
+graph TD
+  subgraph Client
+    U[Users]
+  end
+
+  subgraph VercelCDN[Vercel Edge CDN]
+    FE[Next.js Frontend]
+  end
+
+  subgraph Backend[Railway or AWS ECS/Fargate]
+    API[NestJS API]
+    Worker[Background Workers]
+  end
+
+  subgraph Data[Managed Data Services]
+    PG[(PostgreSQL 15+)]
+    REDIS[(Managed Redis)]
+    S3[(S3-compatible Object Storage)]
+  end
+
+  subgraph ThirdParty[Third-party]
+    Stripe[Stripe]
+  end
+
+  U -->|HTTPS| FE
+  FE -->|HTTPS fetch| API
+  API -->|Read/Write| PG
+  API -->|Cache/Queues| REDIS
+  API -->|Uploads| S3
+  Worker -->|Jobs| REDIS
+  Worker -->|Process| PG
+  Stripe -->|Webhooks (HTTPS)| API
+  FE -->|Static Assets via CDN| VercelCDN
+
+  classDef secure fill:#e6f7ff,stroke:#0094FF,stroke-width:1px;
+  class FE,API,Worker,PG,REDIS,S3,Stripe secure;

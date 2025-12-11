@@ -6,4 +6,5 @@ COPY . .
 RUN npm run build
 
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+# Run DB migrations then start
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

@@ -1,0 +1,24 @@
+# Production Rollout Checklist
+
+- [ ] Custom domains configured (app + api) with TLS certs
+- [ ] Frontend deployed on Vercel (US region), security headers verified
+- [ ] Backend deployed (Railway/ECS), health checks passing
+- [ ] Env vars set for both envs (see deploy guide)
+- [ ] Database provisioned with TLS and restricted access
+- [ ] Redis provisioned and reachable
+- [ ] S3 buckets created with encryption and public access blocked
+- [ ] Stripe webhook configured to /api/v1/webhooks/stripe
+- [ ] STRIPE_WEBHOOK_SECRET set in backend
+- [ ] Zero-downtime deploy tested (rolling update)
+- [ ] Automatic migrations verified on deploy
+- [ ] CORS origins limited to production domains
+- [ ] Cookies set as Secure + HttpOnly + SameSite=Lax
+- [ ] Rate limiting active (Nest Throttler)
+- [ ] CSRF token flow tested (if using cookie auth)
+- [ ] Body size limits enforced
+- [ ] Monitoring set up to hit /api/v1/health every 1 min
+- [ ] Error logging provider connected (optional)
+- [ ] Backups enabled for Postgres; restore drill executed
+- [ ] Least-privilege IAM for storage and CI
+- [ ] Disable/lock down any unused ports/services
+- [ ] Staging isolation verified (no data cross-over)
