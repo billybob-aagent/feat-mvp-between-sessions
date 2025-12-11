@@ -9,6 +9,7 @@ export default function ClientAssignmentsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [voice, setVoice] = useState<File | null>(null);
 
   async function load() {
     try {
@@ -26,7 +27,14 @@ export default function ClientAssignmentsPage() {
     setStatus(null);
     try {
       await apiFetch('/responses/submit', { method: 'POST', body: JSON.stringify({ assignmentId: selected, text }) });
+      if (voice) {
+        const fd = new FormData();
+        fd.append('assignmentId', selected);
+        fd.append('voice', voice);
+        await apiFetch('/responses/upload-voice', { method: 'POST', body: fd });
+      }
       setText('');
+      setVoice(null);
       setStatus('Submitted');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -54,6 +62,10 @@ export default function ClientAssignmentsPage() {
       {selected && (
         <form onSubmit={submit} className="mt-6 space-y-3">
           <textarea className="w-full border p-2 rounded" placeholder="Your reflection" value={text} onChange={(e)=>setText(e.target.value)} required />
+          <div>
+            <label className="text-sm">Optional voice note (audio)</label>
+            <input className="block mt-1" type="file" accept="audio/*" onChange={(e)=>setVoice(e.target.files?.[0] || null)} />
+          </div>
           <button className="px-4 py-2 bg-black text-white rounded" type="submit">Submit</button>
           {status && <p className="text-sm text-gray-700">{status}</p>}
         </form>
