@@ -1,0 +1,76 @@
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
+import * as csurf from 'csurf';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: ['http://localhost:3000', 'http://localhost:3001'],
+      credentials: true,
+    },
+  });
+
+  app.setGlobalPrefix('api/v1');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.use(helmet());
+  app.use(cookieParser());
+
+  // CSRF protection (cookie-based). Frontend must send X-CSRF-Token on writes.
+  app.use(
+    csurf({
+      cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    }) as any,
+  );
+
+  // Provide CSRF token for the frontend
+  const http = app.getHttpAdapter().getInstance();
+  http.get('/api/v1/csrf', (req: any, res: any) => {
+    res.json({ csrfToken: req.csrfToken() });
+  });
+
+  // Return clean JSON on CSRF errors
+  http.use((err: any, _req: any, res: any, next: any) => {
+    if (err?.code === 'EBADCSRFTOKEN') {
+      return res.status(403).json({ statusCode: 403, message: 'invalid csrf token' });
+    }
+    return next(err);
+  });
+
+  const config = new DocumentBuilder()
+    .setTitle('Between Sessions API')
+    .setDescription('OpenAPI 3.1 for Between Sessions')
+    .setVersion('1.0.0')
+    .addCookieAuth('access_token', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'access_token',
+    })
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const port = Number(process.env.PORT ?? 4000);
+  await app.listen(port);
+
+  // eslint-disable-next-line no-console
+  console.log(`API listening on http://localhost:${port}`);
+}
+
+bootstrap();
+

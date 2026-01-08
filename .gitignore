@@ -1,0 +1,22 @@
+# dependencies / builds
+node_modules/
+.next/
+dist/
+coverage/
+
+# env
+.env
+.env.*
+
+# backups / local copies
+*_local_backup_*
+backend_local_backup/
+public_local_backup_*/
+src_local_backup_*/
+.git_broken_backup/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+

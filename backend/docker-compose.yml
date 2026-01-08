@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    container_name: betweensessions_db
+    environment:
+      POSTGRES_USER: betweensessions
+      POSTGRES_PASSWORD: betweensessions
+      POSTGRES_DB: betweensessions
+    ports:
+      - "5432:5432"
+    volumes:
+      - betweensessions_pgdata:/var/lib/postgresql/data
+volumes:
+  betweensessions_pgdata:
