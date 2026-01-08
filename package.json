@@ -1,0 +1,19 @@
+{
+  "name": "feat-mvp-between-sessions",
+  "version": "0.1.0",
+  "description": "Mental wellness companion for between-session support",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "lint": "node --check server.js"
+  },
+  "keywords": [
+    "mental-wellness",
+    "coaching",
+    "web"
+  ],
+  "author": "",
+  "license": "MIT"
+}

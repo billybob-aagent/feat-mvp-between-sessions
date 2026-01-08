@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Between Sessions | Mental Wellness Companion</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__dot"></div>
+        <span class="brand__name">Between Sessions</span>
+      </div>
+      <nav class="topbar__actions">
+        <button class="ghost" id="openToday">Today</button>
+        <button class="ghost" id="openWeekly">Week view</button>
+        <button class="primary" id="startQuick">Launch focus mode</button>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Launchpad</p>
+          <h1 id="hero-title">Your between-session support hub</h1>
+          <p class="lede">
+            Stay anchored to your goals with quick check-ins, guided breathing,
+            and session-to-session plans that fit into real life.
+          </p>
+          <div class="hero__actions">
+            <button class="primary" id="startCheckIn">Start a check-in</button>
+            <button class="secondary" id="startBreathing">Do a 4-7-8 cycle</button>
+          </div>
+          <dl class="hero__stats">
+            <div>
+              <dt>Next session</dt>
+              <dd id="nextSession">Tuesday, 4:00 PM</dd>
+            </div>
+            <div>
+              <dt>Focus for today</dt>
+              <dd id="todayFocus">Grounding and sleep routine</dd>
+            </div>
+            <div>
+              <dt>Streak</dt>
+              <dd id="streak">3 days checking in</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="panel panel--glass">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Guided breathing</p>
+              <p class="panel__title">4-7-8 cycle</p>
+            </div>
+            <span class="pill pill--calm" id="breathStatus">Ready</span>
+          </div>
+          <div class="breath">
+            <div class="breath__circle" id="breathCircle"></div>
+            <p class="breath__instruction" id="breathInstruction">
+              Press start to begin a calming cycle.
+            </p>
+            <button class="primary full" id="breathToggle">Start</button>
+            <p class="caption">Inhale 4s · Hold 7s · Exhale 8s</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Tonight</p>
+              <p class="panel__title">Do now plan</p>
+            </div>
+            <span class="pill pill--focus" id="tonightStatus">Planned</span>
+          </div>
+          <ul class="list" id="tonightList" aria-label="Tonight plan"></ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Next session</p>
+              <p class="panel__title">Bring this in</p>
+            </div>
+            <span class="pill" id="sessionStatus">Draft</span>
+          </div>
+          <ul class="list" id="sessionPrep" aria-label="Next session prep"></ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Check-in</p>
+              <p class="panel__title">Mood &amp; energy</p>
+            </div>
+            <span class="pill pill--active" id="moodBadge">Stable</span>
+          </div>
+          <form class="checkin" id="checkinForm">
+            <label class="stack">
+              <span>Mood (0-10)</span>
+              <input type="range" min="0" max="10" value="6" id="moodInput" />
+              <output id="moodValue" for="moodInput">6</output>
+            </label>
+            <label class="stack">
+              <span>What changed since last session?</span>
+              <textarea id="noteInput" rows="3" placeholder="Small wins, frictions, observations..."></textarea>
+            </label>
+            <div class="checkin__actions">
+              <button type="button" class="ghost" id="addMicroAction">Add micro-action</button>
+              <button type="submit" class="primary">Save check-in</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Progress</p>
+              <p class="panel__title">Timeline</p>
+            </div>
+            <span class="pill" id="progressSummary">Updated</span>
+          </div>
+          <ul class="timeline" id="timeline" aria-live="polite"></ul>
+        </article>
+      </section>
+
+      <section class="grid grid--thirds">
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Focus</p>
+              <p class="panel__title">Quick actions</p>
+            </div>
+            <span class="pill pill--focus">Live</span>
+          </div>
+          <div class="actions" id="quickActions"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Session prep</p>
+              <p class="panel__title">Show up ready</p>
+            </div>
+            <span class="pill" id="prepStatus">In progress</span>
+          </div>
+          <div class="checklist" id="prepChecklist"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Library</p>
+              <p class="panel__title">Tools that help</p>
+            </div>
+            <span class="pill pill--calm">Updated</span>
+          </div>
+          <div class="library" id="resourceList"></div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Grounded support between every session.</p>
+      <div class="footer__links">
+        <a href="#" aria-label="Open chat support">Chat</a>
+        <a href="#" aria-label="Open account settings">Settings</a>
+        <a href="#" aria-label="View privacy policy">Privacy</a>
+      </div>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
