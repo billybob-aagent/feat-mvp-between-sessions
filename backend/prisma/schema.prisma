@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // Enums
@@ -13,6 +14,7 @@ enum UserRole {
   therapist
   client
   admin
+  CLINIC_ADMIN
 }
 
 enum InviteStatus {
@@ -20,6 +22,11 @@ enum InviteStatus {
   accepted
   expired
   revoked
+}
+
+enum AssignmentStatus {
+  draft
+  published
 }
 
 enum SubscriptionStatus {
@@ -33,72 +40,107 @@ enum SubscriptionStatus {
 }
 
 model users {
-  id                String   @id @default(uuid()) @db.Uuid
-  email             String   @unique
-  password_hash     String
-  role              UserRole
-  email_verified_at DateTime?
-  last_login_at     DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id                 String   @id @default(uuid()) @db.Uuid
+  email              String   @unique
+  password_hash      String
+  role               UserRole
+  is_disabled        Boolean  @default(false)
+  email_verified_at  DateTime?
+  last_login_at      DateTime?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  therapist therapists?
-  client    clients?
+  therapist          therapists?
+  client             clients?
 
-  sessions  sessions[]
-  audit_logs audit_logs[]
-  notifications notifications[]
+  sessions           sessions[]
+  audit_logs         audit_logs[]
+  notifications      notifications[]
+  clinic_memberships clinic_memberships[]
+}
+
+model clinics {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  timezone      String
+  logo_url      String?
+  primary_color String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  memberships   clinic_memberships[]
+  therapists    therapists[]
+}
+
+model clinic_memberships {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinic_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  role       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  clinic     clinics @relation(fields: [clinic_id], references: [id])
+  user       users   @relation(fields: [user_id], references: [id])
+
+  @@unique([clinic_id, user_id])
 }
 
 model therapists {
-  id          String   @id @default(uuid()) @db.Uuid
-  user_id     String   @unique @db.Uuid
-  full_name   String
-  organization String?
-  timezone    String   @default("UTC")
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String   @unique @db.Uuid
+  clinic_id       String?  @db.Uuid
+  full_name       String
+  organization    String?
+  timezone        String   @default("UTC")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  user        users    @relation(fields: [user_id], references: [id])
-  clients     clients[]
-  prompts     prompts[]
-  assignments assignments[]
-  feedback    feedback[]
-  billing     billing_customers?
-  invoices    invoices[]
-  invites     invites[] @relation("TherapistInvites")
+  user            users    @relation(fields: [user_id], references: [id])
+  clinic          clinics? @relation(fields: [clinic_id], references: [id])
+  clients         clients[]
+  prompts         prompts[]
+  assignments     assignments[]
+  feedback        feedback[]
+  billing         billing_customers?
+  invoices        invoices[]
+  invites         invites[] @relation("TherapistInvites")
+
+  // NEW: responses reviewed by this therapist
+  reviewed_responses responses[] @relation("ResponseReviewedBy")
+  starred_responses  responses[] @relation("ResponseStarredBy")
 }
 
 model clients {
-  id           String   @id @default(uuid()) @db.Uuid
-  user_id      String   @unique @db.Uuid
-  therapist_id String   @db.Uuid
-  full_name    String
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id               String   @id @default(uuid()) @db.Uuid
+  user_id          String   @unique @db.Uuid
+  therapist_id     String   @db.Uuid
+  full_name        String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  user         users       @relation(fields: [user_id], references: [id])
-  therapist    therapists  @relation(fields: [therapist_id], references: [id])
-  assignments  assignments[]
-  responses    responses[]
-  checkins     checkins[]
-  metrics_week metrics_client_weekly[]
+  user             users       @relation(fields: [user_id], references: [id])
+  therapist        therapists  @relation(fields: [therapist_id], references: [id])
+  assignments      assignments[]
+  responses        responses[]
+  checkins         checkins[]
+  metrics_week     metrics_client_weekly[]
   accepted_invites invites[] @relation("AcceptedInviteClient")
 }
 
 model invites {
-  id            String     @id @default(uuid()) @db.Uuid
-  therapist_id  String     @db.Uuid
-  email         String
-  token         String     @unique
-  status        InviteStatus @default(pending)
-  expires_at    DateTime
-  accepted_client_id String? @db.Uuid
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
+  id                 String       @id @default(uuid()) @db.Uuid
+  therapist_id       String       @db.Uuid
+  email              String
+  token              String       @unique
+  status             InviteStatus @default(pending)
+  expires_at         DateTime
+  accepted_client_id String?      @db.Uuid
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
 
-  therapist       therapists @relation("TherapistInvites", fields: [therapist_id], references: [id])
-  accepted_client clients?   @relation("AcceptedInviteClient", fields: [accepted_client_id], references: [id])
+  therapist          therapists @relation("TherapistInvites", fields: [therapist_id], references: [id])
+  accepted_client    clients?   @relation("AcceptedInviteClient", fields: [accepted_client_id], references: [id])
 }
 
 model prompts {
@@ -117,7 +159,11 @@ model assignments {
   id            String    @id @default(uuid()) @db.Uuid
   therapist_id  String    @db.Uuid
   client_id     String    @db.Uuid
-  prompt_id     String    @db.Uuid
+  prompt_id     String?   @db.Uuid
+  title         String?
+  description   String?
+  status        AssignmentStatus @default(published)
+  published_at  DateTime?
   due_date      DateTime?
   recurrence    String?   // e.g., daily, weekly
   created_at    DateTime  @default(now())
@@ -125,24 +171,55 @@ model assignments {
 
   therapist     therapists @relation(fields: [therapist_id], references: [id])
   client        clients    @relation(fields: [client_id], references: [id])
-  prompt        prompts    @relation(fields: [prompt_id], references: [id])
+  prompt        prompts?   @relation(fields: [prompt_id], references: [id])
   responses     responses[]
+
+  @@index([therapist_id, status, created_at])
+  @@index([client_id, status, created_at])
+  @@index([title])
 }
 
 model responses {
-  id               String    @id @default(uuid()) @db.Uuid
-  assignment_id    String    @db.Uuid
-  client_id        String    @db.Uuid
-  text_cipher      Bytes     // AES-256-GCM ciphertext
-  text_nonce       Bytes     // IV/nonce
-  text_tag         Bytes     // auth tag
-  voice_storage_key String?  // reference to file storage key
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id                  String   @id @default(uuid()) @db.Uuid
+  assignment_id       String   @db.Uuid
+  client_id           String   @db.Uuid
 
-  assignment assignments @relation(fields: [assignment_id], references: [id])
-  client     clients     @relation(fields: [client_id], references: [id])
-  feedback   feedback[]
+  // Client response (encrypted)
+  mood                Int      @default(5)
+  text_cipher         Bytes
+  text_nonce          Bytes
+  text_tag            Bytes
+  prompt_cipher       Bytes?
+  prompt_nonce        Bytes?
+  prompt_tag          Bytes?
+  voice_storage_key   String?
+
+  // Therapist workflow
+  reviewed_at         DateTime?
+  reviewed_by_id      String?  @db.Uuid
+  flagged_at          DateTime?
+  starred_at          DateTime?
+  starred_by_id       String?  @db.Uuid
+
+  // Therapist note (ENCRYPTED)
+  therapist_note_cipher Bytes?
+  therapist_note_nonce  Bytes?
+  therapist_note_tag    Bytes?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  assignment           assignments @relation(fields: [assignment_id], references: [id])
+  client               clients     @relation(fields: [client_id], references: [id])
+  feedback             feedback[]
+
+  // Reviewed-by therapist relation (named to avoid ambiguity)
+  reviewed_by          therapists? @relation("ResponseReviewedBy", fields: [reviewed_by_id], references: [id])
+  starred_by           therapists? @relation("ResponseStarredBy", fields: [starred_by_id], references: [id])
+
+  @@index([assignment_id, created_at])
+  @@index([assignment_id, client_id, created_at])
+  @@index([client_id, created_at])
 }
 
 model feedback {
@@ -155,8 +232,8 @@ model feedback {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  response   responses  @relation(fields: [response_id], references: [id])
-  therapist  therapists @relation(fields: [therapist_id], references: [id])
+  response      responses  @relation(fields: [response_id], references: [id])
+  therapist     therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model checkins {
@@ -169,13 +246,14 @@ model checkins {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
-  client clients @relation(fields: [client_id], references: [id])
+  client       clients @relation(fields: [client_id], references: [id])
 }
 
 model notifications {
   id           String    @id @default(uuid()) @db.Uuid
   user_id      String    @db.Uuid
   type         String
+  dedupe_key   String?   @unique
   data_cipher  Bytes?
   data_nonce   Bytes?
   data_tag     Bytes?
@@ -183,7 +261,7 @@ model notifications {
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
 
-  user users @relation(fields: [user_id], references: [id])
+  user         users @relation(fields: [user_id], references: [id])
 }
 
 model billing_customers {
@@ -197,7 +275,7 @@ model billing_customers {
   created_at             DateTime @default(now())
   updated_at             DateTime @updatedAt
 
-  therapist therapists @relation(fields: [therapist_id], references: [id])
+  therapist              therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model invoices {
@@ -210,7 +288,7 @@ model invoices {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  therapist therapists @relation(fields: [therapist_id], references: [id])
+  therapist          therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model audit_logs {
@@ -225,32 +303,32 @@ model audit_logs {
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
 
-  user users? @relation(fields: [user_id], references: [id])
+  user        users? @relation(fields: [user_id], references: [id])
 }
 
 model sessions {
-  id           String   @id @default(uuid()) @db.Uuid
-  user_id      String   @db.Uuid
-  refresh_token String  @unique
-  valid        Boolean  @default(true)
-  last_seen_at DateTime?
-  ip           String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
-  user users @relation(fields: [user_id], references: [id])
-}
-
-model metrics_client_weekly {
   id            String   @id @default(uuid()) @db.Uuid
-  client_id     String   @db.Uuid
-  week_start    DateTime
-  assignments_assigned Int @default(0)
-  responses_submitted  Int @default(0)
-  avg_mood      Float?
+  user_id       String   @db.Uuid
+  refresh_token String   @unique
+  valid         Boolean  @default(true)
+  last_seen_at  DateTime?
+  ip            String?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  client clients @relation(fields: [client_id], references: [id])
+  user          users @relation(fields: [user_id], references: [id])
+}
+
+model metrics_client_weekly {
+  id                  String   @id @default(uuid()) @db.Uuid
+  client_id           String   @db.Uuid
+  week_start          DateTime
+  assignments_assigned Int     @default(0)
+  responses_submitted  Int     @default(0)
+  avg_mood            Float?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  client              clients @relation(fields: [client_id], references: [id])
   @@unique([client_id, week_start])
 }

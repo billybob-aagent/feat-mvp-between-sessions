@@ -15,6 +15,9 @@ import { ResponsesModule } from './modules/responses/responses.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { CheckinsModule } from './modules/checkins/checkins.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { ClinicModule } from './modules/clinic/clinic.module';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { ClientsModule } from './modules/clients/clients.module';
     ResponsesModule,
     FeedbackModule,
     CheckinsModule,
+    NotificationsModule,
+    AdminModule,
+    ClinicModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,38 +1,36 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import type { Request } from 'express';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import type { Request } from "express";
 
 type JwtPayload = {
-  sub: string;          // user id
-  role: string;         // 'client' | 'therapist' | etc
+  sub: string; // user id
+  role: string; // 'client' | 'therapist' | etc
+  type?: string; // 'access' | 'refresh'
   iat?: number;
   exp?: number;
 };
 
 function cookieExtractor(req: Request): string | null {
-  // Requires cookie-parser middleware (we’ll add in main.ts)
-  return req?.cookies?.access_token ?? null;
+  return (req?.cookies?.access_token as string | undefined) ?? null;
 }
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class CookieJwtStrategy extends PassportStrategy(Strategy, "cookie-jwt") {
   constructor() {
     const secret =
       process.env.JWT_ACCESS_SECRET ||
       process.env.JWT_SECRET ||
-      '';
+      "";
 
     if (!secret) {
-      // If this throws on boot, set one of these env vars and restart:
-      // JWT_ACCESS_SECRET or JWT_SECRET
-      throw new Error('Missing JWT secret: set JWT_ACCESS_SECRET or JWT_SECRET');
+      throw new Error("Missing JWT secret: set JWT_ACCESS_SECRET or JWT_SECRET");
     }
 
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
         cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       secretOrKey: secret,
       ignoreExpiration: false,
@@ -41,13 +39,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(payload: JwtPayload) {
     if (!payload?.sub) {
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedException("Invalid token");
     }
 
-    // Standardize what goes on req.user for controllers/guards
+    // Optional safety: ensure we're not accepting refresh tokens as access
+    if (payload.type && payload.type !== "access") {
+      throw new UnauthorizedException("Invalid token type");
+    }
+
     return {
       userId: payload.sub,
       role: payload.role,
     };
   }
 }
+

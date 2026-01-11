@@ -1,104 +1,156 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
-import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { RegisterTherapistDto } from './register-therapist.dto';
-import { RegisterClientDto } from './register-client.dto';
-import { LoginDto } from './login.dto';
-import { JwtService } from '@nestjs/jwt';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import type { Request, Response } from "express";
+import { AuthService } from "./auth.service";
+import { AuditService } from "../audit/audit.service";
+import { JwtAuthGuard } from "./jwt-auth.guard";
+
+import { LoginDto } from "./login.dto";
+import { RegisterTherapistDto } from "./register-therapist.dto";
+import { RegisterClientDto } from "./register-client.dto";
+import { RegisterClinicDto } from "./register-clinic.dto";
 
 function baseCookieOptions() {
   return {
-    httpOnly: true as const,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
   };
 }
 
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly jwt: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
-  @Get('csrf')
-  csrf(@Req() req: Request) {
-    const token =
-      typeof (req as any).csrfToken === 'function' ? (req as any).csrfToken() : null;
-    return { csrfToken: token };
-  }
-
-  @Get('me')
-  async me(@Req() req: Request) {
-    const token = req.cookies?.access_token as string | undefined;
-    if (!token) throw new UnauthorizedException('Not authenticated');
-
-    try {
-      const payload = await this.jwt.verifyAsync(token);
-      return { authenticated: true, userId: payload.sub, role: payload.role };
-    } catch {
-      throw new UnauthorizedException('Not authenticated');
-    }
-  }
-
-  @Post('register-therapist')
+  @Post("register/therapist")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async registerTherapist(
     @Body() dto: RegisterTherapistDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access, refresh } = await this.auth.registerTherapist(dto);
 
-    res.cookie('access_token', access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
-    res.cookie('refresh_token', refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return { ok: true };
   }
 
-  @Post('register-client')
-  async registerClient(
+  @Post("register/client")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async registerClientFromInvite(
     @Body() dto: RegisterClientDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access, refresh } = await this.auth.registerClientFromInvite(dto);
 
-    res.cookie('access_token', access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
-    res.cookie('refresh_token', refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return { ok: true };
   }
 
-  @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const { access, refresh } = await this.auth.login(dto.email, dto.password);
+  @Post("register/clinic")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async registerClinicAdmin(
+    @Body() dto: RegisterClinicDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access, refresh } = await this.auth.registerClinicAdmin(dto);
 
-    res.cookie('access_token', access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
-    res.cookie('refresh_token', refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return { ok: true };
   }
 
-  @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = (req.cookies?.refresh_token as string | undefined) ?? '';
+  // Back-compat for frontend route: POST /api/v1/auth/register-client
+  @Post("register-client")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async registerClientFromInviteAlias(
+    @Body() dto: RegisterClientDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.registerClientFromInvite(dto, res);
+  }
+
+  @Post("login")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
+  ) {
+    const { access, refresh, userId } = await this.auth.login(dto.email, dto.password);
+
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    await this.audit.log({
+      userId,
+      action: "auth.login",
+      entityType: "session",
+      ip: req.ip,
+      userAgent: req.headers["user-agent"] || undefined,
+    });
+
+    return { ok: true };
+  }
+
+  @Post("refresh")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req.cookies?.refresh_token as string | undefined) ?? "";
     const { access, refresh } = await this.auth.refresh(refreshToken);
 
-    res.cookie('access_token', access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
-    res.cookie('refresh_token', refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
     return { ok: true };
   }
 
-  @Post('logout')
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = (req.cookies?.refresh_token as string | undefined) ?? '';
-    await this.auth.logout(refreshToken).catch(() => {});
+  @Post("logout")
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req.cookies?.refresh_token as string | undefined) ?? "";
+    const { userId } = await this.auth.logout(refreshToken).catch(() => ({
+      ok: true,
+      userId: null,
+    }));
 
-    res.clearCookie('access_token', { path: '/' });
-    res.clearCookie('refresh_token', { path: '/' });
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/" });
+
+    if (userId) {
+      await this.audit.log({
+        userId,
+        action: "auth.logout",
+        entityType: "session",
+        ip: req.ip,
+        userAgent: req.headers["user-agent"] || undefined,
+      });
+    }
 
     return { ok: true };
+  }
+
+  // ✅ stable contract used by frontend guards
+  @UseGuards(JwtAuthGuard)
+  @Get("me")
+  async me(@Req() req: any) {
+    // JwtStrategy.validate returns { userId, role }
+    return {
+      authenticated: true,
+      userId: req.user.userId,
+      role: req.user.role,
+    };
   }
 }
-
-
