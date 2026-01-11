@@ -42,8 +42,26 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpErrorFilter());
 
+  const envOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const allowedOrigins =
+    envOrigins.length > 0
+      ? envOrigins
+      : [
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://127.0.0.1:3000",
+          "http://127.0.0.1:3001",
+        ];
+
   app.enableCors({
-    origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("CORS blocked"), false);
+    },
     credentials: true,
   });
 
