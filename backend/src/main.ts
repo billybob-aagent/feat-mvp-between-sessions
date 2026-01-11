@@ -60,6 +60,13 @@ async function bootstrap() {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      const isNgrok =
+        origin.endsWith(".ngrok-free.dev") ||
+        origin.endsWith(".ngrok.io") ||
+        origin.endsWith(".ngrok.app");
+      if (isNgrok) return callback(null, true);
+
       return callback(new Error("CORS blocked"), false);
     },
     credentials: true,

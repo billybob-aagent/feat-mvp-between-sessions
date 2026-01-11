@@ -9,6 +9,7 @@ import { LoginDto } from "./login.dto";
 import { RegisterTherapistDto } from "./register-therapist.dto";
 import { RegisterClientDto } from "./register-client.dto";
 import { RegisterClinicDto } from "./register-clinic.dto";
+import { RegisterClinicTherapistDto } from "./register-clinic-therapist.dto";
 
 function baseCookieOptions() {
   return {
@@ -60,6 +61,34 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access, refresh } = await this.auth.registerClinicAdmin(dto);
+
+    res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    return { ok: true };
+  }
+
+  @Get("clinic-invite")
+  async lookupClinicInvite(@Req() req: Request) {
+    const token = (req.query?.token as string | undefined) ?? "";
+    if (!token) {
+      return {
+        email: "",
+        status: "invalid",
+        expires_at: null,
+        isExpired: true,
+      };
+    }
+    return this.auth.lookupClinicTherapistInvite(token);
+  }
+
+  @Post("register/clinic-therapist")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async registerClinicTherapist(
+    @Body() dto: RegisterClinicTherapistDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access, refresh } = await this.auth.registerClinicTherapistFromInvite(dto);
 
     res.cookie("access_token", access, { ...baseCookieOptions(), maxAge: 15 * 60 * 1000 });
     res.cookie("refresh_token", refresh, { ...baseCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });

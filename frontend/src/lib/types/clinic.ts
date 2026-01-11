@@ -42,6 +42,17 @@ export type ClinicTherapistDetail = {
   lastResponseAt: string | null;
 };
 
+export type ClinicTherapistInvite = {
+  token: string;
+  expiresAt: string | null;
+};
+
+export type ClinicTherapistCreateResult = {
+  id: string | null;
+  fullName: string | null;
+  email: string;
+};
+
 export type ClinicClientListItem = {
   id: string;
   fullName: string;

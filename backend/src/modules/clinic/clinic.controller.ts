@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ClinicService } from "./clinic.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { UserRole } from "@prisma/client";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+import { InviteTherapistDto } from "./dto/invite-therapist.dto";
+import { CreateTherapistDto } from "./dto/create-therapist.dto";
 
 @Controller("clinic")
 export class ClinicController {
@@ -31,6 +33,32 @@ export class ClinicController {
       q: q?.trim() || null,
       limit,
       cursor: cursor || null,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN)
+  @Post("therapists/invite")
+  async inviteTherapist(
+    @Req() req: any,
+    @Body() dto: InviteTherapistDto,
+  ) {
+    return this.clinic.inviteTherapist(req.user.userId, dto, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN)
+  @Post("therapists")
+  async createTherapist(
+    @Req() req: any,
+    @Body() dto: CreateTherapistDto,
+  ) {
+    return this.clinic.createTherapist(req.user.userId, dto, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
     });
   }
 

@@ -47,6 +47,13 @@ export class HttpErrorFilter implements ExceptionFilter {
       return;
     }
 
+    if (exception instanceof Error) {
+      // Log non-HTTP exceptions without request body to avoid leaking sensitive data.
+      console.error(`[HttpErrorFilter] ${exception.name}: ${exception.message}`);
+    } else {
+      console.error("[HttpErrorFilter] Unknown error");
+    }
+
     const body: ErrorPayload = {
       ok: false,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -58,4 +65,3 @@ export class HttpErrorFilter implements ExceptionFilter {
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(body);
   }
 }
-

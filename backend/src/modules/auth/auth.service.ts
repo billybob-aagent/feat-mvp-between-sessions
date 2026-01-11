@@ -172,6 +172,80 @@ export class AuthService {
     }
   }
 
+  async lookupClinicTherapistInvite(token: string) {
+    const inv = await this.prisma.clinic_therapist_invites.findUnique({
+      where: { token },
+    });
+    if (!inv) throw new BadRequestException("Invalid invite");
+
+    const isExpired = inv.expires_at.getTime() < Date.now();
+    return {
+      email: inv.email,
+      status: inv.status,
+      expires_at: inv.expires_at,
+      isExpired,
+    };
+  }
+
+  async registerClinicTherapistFromInvite(params: {
+    token: string;
+    password: string;
+    fullName: string;
+    organization?: string;
+    timezone?: string;
+  }) {
+    const invite = await this.prisma.clinic_therapist_invites.findUnique({
+      where: { token: params.token },
+    });
+    if (!invite) throw new BadRequestException("Invalid invite");
+    if (invite.status !== InviteStatus.pending) {
+      throw new BadRequestException("Invite is not pending");
+    }
+    if (invite.expires_at.getTime() < Date.now()) {
+      throw new BadRequestException("Invite expired");
+    }
+
+    const existing = await this.prisma.users.findUnique({
+      where: { email: invite.email },
+    });
+    if (existing) throw new BadRequestException("Email already registered");
+
+    const password_hash = await argon2.hash(params.password);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.users.create({
+        data: {
+          email: invite.email,
+          password_hash,
+          role: UserRole.therapist,
+          email_verified_at:
+            process.env.EMAIL_ENABLED === "true" ? null : new Date(),
+          therapist: {
+            create: {
+              full_name: params.fullName.trim(),
+              organization: params.organization?.trim() || null,
+              timezone: params.timezone?.trim() || "UTC",
+              clinic_id: invite.clinic_id,
+            },
+          },
+        },
+        include: { therapist: true },
+      });
+
+      await tx.clinic_therapist_invites.update({
+        where: { id: invite.id },
+        data: {
+          status: InviteStatus.accepted,
+          accepted_user_id: user.id,
+        },
+      });
+
+      return user;
+    });
+
+    return this.issueTokens(result.id, result.role as UserRole);
+  }
+
   async login(email: string, password: string) {
     const user = await this.prisma.users.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException("Invalid credentials");

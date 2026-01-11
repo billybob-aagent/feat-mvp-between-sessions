@@ -57,6 +57,7 @@ model users {
   audit_logs         audit_logs[]
   notifications      notifications[]
   clinic_memberships clinic_memberships[]
+  clinic_therapist_invites_accepted clinic_therapist_invites[] @relation("ClinicInviteAcceptedUser")
 }
 
 model clinics {
@@ -70,6 +71,7 @@ model clinics {
 
   memberships   clinic_memberships[]
   therapists    therapists[]
+  therapist_invites clinic_therapist_invites[]
 }
 
 model clinic_memberships {
@@ -84,6 +86,24 @@ model clinic_memberships {
   user       users   @relation(fields: [user_id], references: [id])
 
   @@unique([clinic_id, user_id])
+}
+
+model clinic_therapist_invites {
+  id               String       @id @default(uuid()) @db.Uuid
+  clinic_id        String       @db.Uuid
+  email            String
+  token            String       @unique
+  status           InviteStatus @default(pending)
+  expires_at       DateTime
+  accepted_user_id String?      @db.Uuid
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  clinic           clinics @relation(fields: [clinic_id], references: [id])
+  accepted_user    users?  @relation("ClinicInviteAcceptedUser", fields: [accepted_user_id], references: [id])
+
+  @@index([clinic_id, status])
+  @@index([email])
 }
 
 model therapists {

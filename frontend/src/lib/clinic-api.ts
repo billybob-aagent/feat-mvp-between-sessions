@@ -10,6 +10,8 @@ import {
   ClinicSettings,
   ClinicTherapistDetail,
   ClinicTherapistListItem,
+  ClinicTherapistInvite,
+  ClinicTherapistCreateResult,
 } from "@/lib/types/clinic";
 
 export async function clinicDashboard(): Promise<ClinicDashboard> {
@@ -30,6 +32,36 @@ export async function clinicListTherapists(params: {
 
 export async function clinicGetTherapist(id: string): Promise<ClinicTherapistDetail> {
   return apiFetch(`/clinic/therapists/${encodeURIComponent(id)}`);
+}
+
+export async function clinicInviteTherapist(dto: {
+  email: string;
+  fullName?: string;
+}): Promise<ClinicTherapistInvite> {
+  const res = await apiFetch<{ token: string; expires_at: string | null }>(
+    "/clinic/therapists/invite",
+    {
+      method: "POST",
+      body: JSON.stringify(dto),
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+
+  return { token: res.token, expiresAt: res.expires_at ?? null };
+}
+
+export async function clinicCreateTherapist(dto: {
+  email: string;
+  fullName: string;
+  password: string;
+  organization?: string;
+  timezone?: string;
+}): Promise<ClinicTherapistCreateResult> {
+  return apiFetch("/clinic/therapists", {
+    method: "POST",
+    body: JSON.stringify(dto),
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function clinicListClients(params: {

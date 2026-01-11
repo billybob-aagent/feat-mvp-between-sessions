@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { clinicListTherapists } from "@/lib/clinic-api";
+import { clinicCreateTherapist, clinicInviteTherapist, clinicListTherapists } from "@/lib/clinic-api";
 import { ClinicTherapistListItem } from "@/lib/types/clinic";
 import { useClinicSession } from "../clinic-session";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,17 @@ export default function ClinicTherapistsPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "disabled">("all");
   const [limit, setLimit] = useState(25);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFullName, setInviteFullName] = useState("");
+  const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createEmail, setCreateEmail] = useState("");
+  const [createFullName, setCreateFullName] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createOrganization, setCreateOrganization] = useState("");
+  const [createTimezone, setCreateTimezone] = useState("");
 
   async function loadFirstPage() {
     setLoading(true);
@@ -75,6 +86,60 @@ export default function ClinicTherapistsPage() {
     return items.filter((item) => (filter === "disabled" ? item.isDisabled : !item.isDisabled));
   }, [items, filter]);
 
+  const inviteLink = useMemo(() => {
+    if (!inviteToken) return null;
+    return `${window.location.origin}/auth/accept-clinic-invite?token=${encodeURIComponent(
+      inviteToken,
+    )}`;
+  }, [inviteToken]);
+
+  async function submitInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteStatus(null);
+    setInviteToken(null);
+    setInviteExpiresAt(null);
+
+    try {
+      const res = await clinicInviteTherapist({
+        email: inviteEmail.trim(),
+        fullName: inviteFullName.trim() || undefined,
+      });
+      setInviteToken(res.token);
+      setInviteExpiresAt(res.expiresAt);
+      setInviteStatus("Invite created. Email send pending.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setInviteStatus(msg);
+    }
+  }
+
+  async function submitCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    setInviteStatus(null);
+    try {
+      await clinicCreateTherapist({
+        email: createEmail.trim(),
+        fullName: createFullName.trim(),
+        password: createPassword,
+        organization: createOrganization.trim() || undefined,
+        timezone: createTimezone.trim() || undefined,
+      });
+      setCreateEmail("");
+      setCreateFullName("");
+      setCreatePassword("");
+      setCreateOrganization("");
+      setCreateTimezone("");
+      await loadFirstPage();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setInviteStatus(msg);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-start justify-between gap-3 mb-6">
@@ -92,6 +157,111 @@ export default function ClinicTherapistsPage() {
       </div>
 
       {status && <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
+
+      <div className="grid gap-4 lg:grid-cols-2 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Invite therapist</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={submitInvite} className="space-y-3">
+              <div>
+                <label className="block text-label text-app-muted mb-1">Email</label>
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="therapist@example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-label text-app-muted mb-1">Full name (optional)</label>
+                <Input
+                  value={inviteFullName}
+                  onChange={(e) => setInviteFullName(e.target.value)}
+                  placeholder="Therapist name"
+                />
+              </div>
+              <Button type="submit">Create invite</Button>
+            </form>
+
+            {inviteStatus && (
+              <p className="mt-3 text-sm text-app-muted whitespace-pre-wrap">{inviteStatus}</p>
+            )}
+
+            {inviteLink && (
+              <div className="mt-3 rounded-md border border-app-border bg-app-surface-2 p-3 text-xs">
+                <div className="font-medium text-app-muted">Invite link</div>
+                <div className="break-all text-app-text">{inviteLink}</div>
+                {inviteExpiresAt && (
+                  <div className="text-app-muted mt-1">
+                    Expires: {new Date(inviteExpiresAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Create therapist</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={submitCreate} className="space-y-3">
+              <div>
+                <label className="block text-label text-app-muted mb-1">Email</label>
+                <Input
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="therapist@example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-label text-app-muted mb-1">Full name</label>
+                <Input
+                  value={createFullName}
+                  onChange={(e) => setCreateFullName(e.target.value)}
+                  placeholder="Therapist name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-label text-app-muted mb-1">Password</label>
+                <Input
+                  type="password"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  placeholder="Temporary password"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-label text-app-muted mb-1">Organization (optional)</label>
+                <Input
+                  value={createOrganization}
+                  onChange={(e) => setCreateOrganization(e.target.value)}
+                  placeholder="Clinic or practice"
+                />
+              </div>
+              <div>
+                <label className="block text-label text-app-muted mb-1">Timezone (optional)</label>
+                <Input
+                  value={createTimezone}
+                  onChange={(e) => setCreateTimezone(e.target.value)}
+                  placeholder="UTC"
+                />
+              </div>
+              <Button type="submit" disabled={creating}>
+                {creating ? "Creating..." : "Create therapist"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="mb-6">
         <CardContent className="flex flex-wrap items-end gap-3">

@@ -1,6 +1,12 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
+import { InviteTherapistDto } from "./dto/invite-therapist.dto";
+import { CreateTherapistDto } from "./dto/create-therapist.dto";
+import { AuditService } from "../audit/audit.service";
+import * as argon2 from "argon2";
+import { randomUUID } from "crypto";
+import { InviteStatus } from "@prisma/client";
 
 export type ClinicDashboardDto = {
   clinic: {
@@ -112,7 +118,7 @@ export type ClinicCheckinListItemDto = {
 
 @Injectable()
 export class ClinicService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private audit: AuditService) {}
 
   private async requireClinicMembership(userId: string) {
     const membership = await this.prisma.clinic_memberships.findFirst({
@@ -162,6 +168,92 @@ export class ClinicService {
         responses,
         checkinsLast7d,
       },
+    };
+  }
+
+  async inviteTherapist(
+    userId: string,
+    dto: InviteTherapistDto,
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.requireClinicMembership(userId);
+    const email = dto.email.trim().toLowerCase();
+
+    const existing = await this.prisma.users.findUnique({ where: { email } });
+    if (existing) throw new BadRequestException("Email already registered");
+
+    const token = randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const invite = await this.prisma.clinic_therapist_invites.create({
+      data: {
+        clinic_id: clinicId,
+        email,
+        token,
+        status: InviteStatus.pending,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.therapist_invite.pending",
+      entityType: "clinic_therapist_invite",
+      entityId: invite.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email },
+    });
+
+    return { token: invite.token, expires_at: invite.expires_at };
+  }
+
+  async createTherapist(
+    userId: string,
+    dto: CreateTherapistDto,
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.requireClinicMembership(userId);
+    const email = dto.email.trim().toLowerCase();
+    const fullName = dto.fullName.trim();
+
+    const existing = await this.prisma.users.findUnique({ where: { email } });
+    if (existing) throw new BadRequestException("Email already registered");
+
+    const password_hash = await argon2.hash(dto.password);
+
+    const user = await this.prisma.users.create({
+      data: {
+        email,
+        password_hash,
+        role: "therapist",
+        email_verified_at: process.env.EMAIL_ENABLED === "true" ? null : new Date(),
+        therapist: {
+          create: {
+            full_name: fullName,
+            organization: dto.organization?.trim() || null,
+            timezone: dto.timezone?.trim() || "UTC",
+            clinic_id: clinicId,
+          },
+        },
+      },
+      include: { therapist: true },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.therapist_create",
+      entityType: "therapist",
+      entityId: user.therapist?.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email },
+    });
+
+    return {
+      id: user.therapist?.id,
+      fullName: user.therapist?.full_name,
+      email: user.email,
     };
   }
 
