@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type InviteLookup = { email: string; status: string };
 
@@ -29,7 +32,9 @@ export default function AcceptInvitePage() {
           setStatus("Missing invite token.");
           return;
         }
-        const data = await apiFetch<InviteLookup>(`/invites/lookup?token=${encodeURIComponent(token)}`);
+        const data = await apiFetch<InviteLookup>(
+          `/invites/lookup?token=${encodeURIComponent(token)}`,
+        );
         if (cancelled) return;
         setInvite(data);
       } catch (e) {
@@ -68,52 +73,73 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <main className="max-w-md mx-auto px-6 py-16">
-      <h1 className="text-3xl font-bold mb-2">Accept invite</h1>
-      <p className="text-gray-700 mb-6">
-        Create your client account to start checking in.
-      </p>
+    <main className="min-h-screen bg-app-bg text-app-text">
+      <div className="max-w-md mx-auto px-6 py-16">
+        <Card>
+          <CardHeader>
+            <CardTitle>Accept invite</CardTitle>
+            <p className="text-sm text-app-muted">
+              Create your client account to start checking in.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {invite && (
+              <div className="mb-4 rounded-md border border-app-border bg-app-surface-2 p-3 text-sm">
+                <div className="font-medium">Invited email</div>
+                <div className="text-app-muted">{invite.email}</div>
+                <div className="text-xs text-app-muted mt-1">
+                  Status: {invite.status}
+                </div>
+              </div>
+            )}
 
-      {invite && (
-        <div className="border rounded p-3 mb-4 text-sm">
-          <div className="font-medium">Invited email</div>
-          <div className="text-gray-700">{invite.email}</div>
-          <div className="text-xs text-gray-500 mt-1">Status: {invite.status}</div>
-        </div>
-      )}
+            <form onSubmit={submit} className="space-y-4">
+              <div>
+                <label className="text-label text-app-muted">Full name</label>
+                <Input
+                  placeholder="Full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
 
-      <form onSubmit={submit} className="space-y-4">
-        <input
-          className="w-full border p-2 rounded"
-          placeholder="Full name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-        />
+              <div>
+                <label className="text-label text-app-muted">Password</label>
+                <Input
+                  placeholder="Password (min 8 chars)"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-        <input
-          className="w-full border p-2 rounded"
-          placeholder="Password (min 8 chars)"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+              <Button
+                className="w-full"
+                type="submit"
+                variant="primary"
+                disabled={loading || !token}
+              >
+                {loading ? "Creating..." : "Create account"}
+              </Button>
 
-        <button
-          className="w-full bg-black text-white py-2 rounded disabled:opacity-60"
-          type="submit"
-          disabled={loading || !token}
-        >
-          {loading ? "Creating..." : "Create account"}
-        </button>
+              {status && (
+                <p className="text-sm text-app-danger whitespace-pre-wrap">
+                  {status}
+                </p>
+              )}
+            </form>
 
-        {status && <p className="text-sm text-red-600 whitespace-pre-wrap">{status}</p>}
-      </form>
-
-      <p className="mt-6 text-sm">
-        Therapist? <Link href="/auth/login" className="underline">Log in</Link>
-      </p>
+            <p className="mt-6 text-sm text-app-muted">
+              Therapist?{" "}
+              <Link href="/auth/login" className="text-app-text hover:underline">
+                Log in
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

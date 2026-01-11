@@ -2,44 +2,39 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
-
-type MeResponse =
-  | { authenticated: false }
-  | { authenticated: true; userId: string; role: string };
+import { useMe } from "@/lib/use-me";
 
 export default function AppIndexPage() {
   const router = useRouter();
+  const { me, loading } = useMe();
 
   useEffect(() => {
-    async function go() {
-      try {
-        const me = await apiFetch<MeResponse>("/auth/me");
+    if (loading || !me) return;
 
-        if (!me || me.authenticated === false) {
-          router.replace("/auth/login");
-          return;
-        }
-
-        if (me.role === "therapist") {
-          router.replace("/app/therapist/dashboard");
-          return;
-        }
-
-        // default to client
-        router.replace("/app/client/checkin");
-      } catch {
-        router.replace("/auth/login");
-      }
+    if (me.role === "therapist") {
+      router.replace("/app/therapist");
+      return;
     }
 
-    go();
-  }, [router]);
+    if (me.role === "client") {
+      router.replace("/app/client");
+      return;
+    }
+
+    if (me.role === "admin") {
+      router.replace("/app/admin/users");
+      return;
+    }
+
+    if (me.role === "CLINIC_ADMIN") {
+      router.replace("/app/clinic/dashboard");
+      return;
+    }
+  }, [loading, me, router]);
 
   return (
-    <main className="max-w-md mx-auto px-6 py-16">
-      <h1 className="text-2xl font-bold">Loading…</h1>
-      <p className="text-gray-700 mt-2">Redirecting you into the app.</p>
-    </main>
+    <div className="text-sm text-app-muted">
+      {loading ? "Loading..." : "Ready."}
+    </div>
   );
 }

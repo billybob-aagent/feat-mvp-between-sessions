@@ -1,154 +1,208 @@
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1";
+// frontend/src/lib/api.ts
 
-type ApiFetchOptions = Omit<RequestInit, "body"> & {
-  json?: unknown;
-  rawBody?: boolean;
-  body?: BodyInit | null;
-};
+type ApiErrorPayload =
+  | { message?: string | string[]; error?: string; statusCode?: number }
+  | any;
 
-// Per-tab cache
-let cachedCsrfToken: string | null = null;
+export class ApiError extends Error {
+  status: number;
+  payload: ApiErrorPayload;
 
-function isMutatingMethod(method?: string) {
-  const m = (method ?? "GET").toUpperCase();
-  return m !== "GET" && m !== "HEAD" && m !== "OPTIONS";
+  constructor(status: number, message: string, payload: ApiErrorPayload) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
 }
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:4000/api/v1";
 
 function buildUrl(path: string) {
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  if (!path.startsWith("/")) path = `/${path}`;
+  return `${BASE_URL}${path}`;
 }
 
-async function fetchCsrfToken(): Promise<string> {
-  const res = await fetch(buildUrl("/auth/csrf"), {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-    headers: { Accept: "application/json" },
-  });
-
+async function parseJsonSafe(res: Response) {
   const text = await res.text();
-  const contentType = res.headers.get("content-type") || "";
-
-  if (!res.ok) {
-    throw new Error(text || `Failed to fetch CSRF token (${res.status})`);
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
-
-  let data: any = null;
-  if (contentType.includes("application/json") && text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
-  }
-
-  const token = data?.csrfToken;
-  if (!token || typeof token !== "string") {
-    throw new Error("CSRF token endpoint returned null/empty token");
-  }
-
-  cachedCsrfToken = token;
-  return token;
 }
 
-function parseErrorMessage(text: string, contentType: string) {
-  if (contentType.includes("application/json")) {
-    try {
-      const data = JSON.parse(text);
-      if (typeof data?.message === "string") return data.message;
-      if (Array.isArray(data?.message)) return data.message.join("\n");
-      return JSON.stringify(data);
-    } catch {
-      return text;
-    }
-  }
-  return text;
+function normalizeErrorMessage(status: number, payload: ApiErrorPayload) {
+  if (!payload) return `Request failed (${status})`;
+
+  const msg = (payload as any)?.message;
+  if (Array.isArray(msg)) return msg.join(", ");
+  if (typeof msg === "string" && msg.trim().length > 0) return msg;
+
+  const err = (payload as any)?.error;
+  if (typeof err === "string" && err.trim().length > 0) return err;
+
+  return `Request failed (${status})`;
 }
 
-async function doFetch(url: string, options: RequestInit) {
-  const res = await fetch(url, {
-    ...options,
-    credentials: "include",
-    cache: "no-store",
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const text = await res.text();
-  return { res, contentType, text };
-}
+/**
+ * Backwards-compatible low-level fetch wrapper.
+ * Some existing pages/components likely import { apiFetch } from "@/lib/api".
+ */
+type ApiFetchInit = RequestInit & {
+  json?: unknown;
+  skipAuthRedirect?: boolean;
+  skipAuthRefresh?: boolean;
+  __retry?: boolean;
+};
 
 export async function apiFetch<T = any>(
   path: string,
-  options: ApiFetchOptions = {},
+  init?: ApiFetchInit,
 ): Promise<T> {
+  const { json: jsonBody, skipAuthRedirect, skipAuthRefresh, __retry, ...rest } = init ?? {};
+  const headers = {
+    "Content-Type": "application/json",
+    ...(rest.headers || {}),
+  };
   const url = buildUrl(path);
-
-  const method = (options.method ?? "GET").toUpperCase();
-  const headers = new Headers(options.headers);
-
-  const isFormData =
-    typeof FormData !== "undefined" && options.body instanceof FormData;
-
-  const hasJson = typeof options.json !== "undefined";
-  if (hasJson && options.body) {
-    throw new Error("apiFetch: provide either `json` or `body`, not both.");
-  }
-
-  if (!headers.has("Accept")) headers.set("Accept", "application/json");
-
-  if (!options.rawBody && !isFormData && hasJson && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const bodyToSend = hasJson ? JSON.stringify(options.json) : options.body;
-
-  // Attach CSRF token for mutating requests
-  if (isMutatingMethod(method)) {
-    const token = cachedCsrfToken ?? (await fetchCsrfToken());
-    headers.set("x-csrf-token", token);
-  }
-
-  // First attempt
-  const first = await doFetch(url, {
-    ...options,
-    method,
+  const res = await fetch(url, {
+    ...rest,
+    body: jsonBody === undefined ? rest.body : JSON.stringify(jsonBody),
     headers,
-    body: bodyToSend,
+    credentials: "include", // REQUIRED for cookie auth
   });
 
-  // If CSRF mismatch, csurf returns 403. Don’t rely on message text.
-  if (first.res.status === 403 && isMutatingMethod(method)) {
-    cachedCsrfToken = null;
-    const token = await fetchCsrfToken();
-    headers.set("x-csrf-token", token);
+  const payload = await parseJsonSafe(res);
 
-    const retry = await doFetch(url, {
-      ...options,
-      method,
-      headers,
-      body: bodyToSend,
-    });
+  if (res.status === 401 && !skipAuthRefresh) {
+    const isAuthRoute =
+      path.startsWith("/auth/login") ||
+      path.startsWith("/auth/refresh") ||
+      path.startsWith("/auth/register") ||
+      path.startsWith("/auth/register-client");
 
-    if (!retry.res.ok) {
-      throw new Error(parseErrorMessage(retry.text || retry.res.statusText, retry.contentType));
+    if (!isAuthRoute && !__retry) {
+      const refreshed = await refreshOnce();
+      if (refreshed) {
+        return apiFetch<T>(path, { ...init, __retry: true });
+      }
     }
-
-    if (!retry.text) return {} as T;
-    if (retry.contentType.includes("application/json")) return JSON.parse(retry.text) as T;
-    return retry.text as unknown as T;
   }
 
-  if (!first.res.ok) {
-    throw new Error(parseErrorMessage(first.text || first.res.statusText, first.contentType));
+  if (res.status === 401 && !skipAuthRedirect && typeof window !== "undefined") {
+    const next = `${window.location.pathname}${window.location.search}`;
+    const target = `/auth/login?next=${encodeURIComponent(next)}`;
+    window.location.href = target;
   }
 
-  if (!first.text) return {} as T;
-  if (first.contentType.includes("application/json")) return JSON.parse(first.text) as T;
-  return first.text as unknown as T;
+  if (!res.ok) {
+    const message = normalizeErrorMessage(res.status, payload);
+    throw new ApiError(res.status, message, payload);
+  }
+
+  return payload as T;
 }
 
+let refreshPromise: Promise<boolean> | null = null;
 
+async function refreshOnce(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(buildUrl("/auth/refresh"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        return res.ok;
+      } catch {
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
 
+  return refreshPromise;
+}
 
+async function request<T>(
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  return apiFetch<T>(path, {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
 
+// Generic helpers
+export function apiGet<T = any>(path: string) {
+  return request<T>("GET", path);
+}
+export function apiPost<T = any>(path: string, body?: unknown) {
+  return request<T>("POST", path, body);
+}
+export function apiPut<T = any>(path: string, body?: unknown) {
+  return request<T>("PUT", path, body);
+}
+export function apiPatch<T = any>(path: string, body?: unknown) {
+  return request<T>("PATCH", path, body);
+}
+export function apiDelete<T = any>(path: string) {
+  return request<T>("DELETE", path);
+}
+
+// ---- Auth (MATCHES BACKEND ROUTES) ----
+export async function login(email: string, password: string) {
+  return apiPost("/auth/login", { email, password });
+}
+
+export async function registerTherapist(email: string, password: string, fullName: string) {
+  return apiPost("/auth/register/therapist", { email, password, fullName });
+}
+
+export async function registerClientFromInvite(token: string, password: string, fullName: string) {
+  return apiPost("/auth/register/client", { token, password, fullName });
+}
+
+export async function refresh() {
+  return apiPost("/auth/refresh", {});
+}
+
+export async function logout() {
+  return apiPost("/auth/logout", {});
+}
+
+// ---- Assignments ----
+export async function clientListMyAssignments() {
+  return apiGet("/assignments/mine");
+}
+
+export async function therapistListMyAssignments() {
+  return apiGet("/assignments/therapist");
+}
+
+// ---- Responses ----
+export async function clientSubmitResponse(dto: {
+  assignmentId: string;
+  mood: number;
+  text: string;
+  prompt?: string;
+  voiceKey?: string;
+}) {
+  return apiPost("/responses/submit", dto);
+}
+
+export async function therapistListResponsesByAssignment(assignmentId: string) {
+  return apiGet(`/responses/therapist/assignment/${assignmentId}`);
+}
+
+export async function therapistGetResponseDecrypted(responseId: string) {
+  return apiGet(`/responses/therapist/${responseId}`);
+}

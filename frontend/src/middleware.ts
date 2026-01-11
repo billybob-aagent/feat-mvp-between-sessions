@@ -1,21 +1,35 @@
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-/**
- * IMPORTANT:
- * We intentionally do NOT enforce auth in middleware.
- *
- * Reason:
- * - auth is cookie-based + refresh-token based
- * - middleware runs before client JS and can redirect prematurely
- * - we want layouts to call /auth/me (401 triggers /auth/refresh) and then continue
- *
- * Real security is enforced on the backend via guards.
- */
-export function middleware(_req: NextRequest) {
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // allow public routes
+  if (
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon.ico")
+  ) {
+    return NextResponse.next();
+  }
+
+  const access = req.cookies.get("access_token")?.value;
+  const refresh = req.cookies.get("refresh_token")?.value;
+
+  // protect app routes
+  if (pathname.startsWith("/app")) {
+    if (!access && !refresh) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/auth/login";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
+  // ✅ FIXED
   matcher: ["/app/:path*"],
 };

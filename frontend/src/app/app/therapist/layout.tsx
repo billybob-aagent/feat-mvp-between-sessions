@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
-
-type MeResponse =
-  | { authenticated: false }
-  | { authenticated: true; userId: string; role: string };
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMe } from "@/lib/use-me";
 
 export default function TherapistLayout({
   children,
@@ -14,81 +10,22 @@ export default function TherapistLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [ok, setOk] = useState(false);
+  const { me, loading } = useMe();
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function getMe(): Promise<MeResponse | null> {
-      try {
-        return await apiFetch<MeResponse>("/auth/me");
-      } catch {
-        return null; // covers 401 or any fetch error
-      }
+    if (!loading && me && me.role !== "therapist") {
+      router.replace("/app");
     }
+  }, [loading, me, router]);
 
-    async function guard() {
-      // 1) First attempt
-      const me1 = await getMe();
-
-      if (cancelled) return;
-
-      if (me1 && me1.authenticated === true) {
-        if (me1.role !== "therapist") {
-          router.replace("/app");
-          return;
-        }
-        setOk(true);
-        return;
-      }
-
-      // 2) Not authenticated (either {authenticated:false} or error/401) -> try refresh once
-      try {
-        await apiFetch("/auth/refresh", { method: "POST", json: {} });
-      } catch {
-        // refresh failed -> go login
-        if (cancelled) return;
-        router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
-        return;
-      }
-
-      if (cancelled) return;
-
-      // 3) Retry me after refresh
-      const me2 = await getMe();
-
-      if (cancelled) return;
-
-      if (me2 && me2.authenticated === true) {
-        if (me2.role !== "therapist") {
-          router.replace("/app");
-          return;
-        }
-        setOk(true);
-        return;
-      }
-
-      // 4) Still not authenticated
-      router.replace(`/auth/login?next=${encodeURIComponent(pathname)}`);
-    }
-
-    guard();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, pathname]);
-
-  if (!ok) {
+  if (loading) {
     return (
       <main className="max-w-md mx-auto px-6 py-16">
-        <h1 className="text-2xl font-bold">Loading…</h1>
-        <p className="text-gray-700 mt-2">Checking access.</p>
+        <h1 className="text-h3">Loading...</h1>
+        <p className="text-sm text-app-muted mt-2">Checking access.</p>
       </main>
     );
   }
 
   return <>{children}</>;
 }
-

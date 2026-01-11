@@ -1,74 +1,81 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
-import helmet from 'helmet';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
-const cookieParser = require('cookie-parser');
-const csurf = require('csurf');
+import "dotenv/config";
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import * as cookieParser from "cookie-parser";
+import helmet from "helmet";
+import { AppModule } from "./app.module";
+import { HttpErrorFilter } from "./common/filters/http-exception.filter";
+import type { Request, Response, NextFunction } from "express";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
-    credentials: true,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'x-csrf-token',
-      'x-xsrf-token',
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const ms = Date.now() - start;
+      const path = (req.originalUrl || req.url || "").split("?")[0];
+      console.log(`${req.method} ${path} ${res.statusCode} ${ms}ms`);
+    });
+    next();
   });
 
-  app.setGlobalPrefix('api/v1');
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const path = req.originalUrl || req.url || "";
+    if (path.startsWith("/api/v1")) {
+      res.setHeader("Cache-Control", "no-store");
+    }
+    next();
+  });
+
+  app.use(helmet());
+  app.use(cookieParser());
+  app.setGlobalPrefix("api/v1");
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
+      forbidNonWhitelisted: true,
     }),
   );
 
-  app.use(helmet());
-  app.use(cookieParser());
+  app.useGlobalFilters(new HttpErrorFilter());
 
-  app.use(
-    csurf({
-      cookie: {
-        key: 'csrf_secret',
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      },
-    }),
-  );
+  const envOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const allowedOrigins =
+    envOrigins.length > 0
+      ? envOrigins
+      : [
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://127.0.0.1:3000",
+          "http://127.0.0.1:3001",
+        ];
 
-  const config = new DocumentBuilder()
-    .setTitle('Between Sessions API')
-    .setDescription('OpenAPI 3.1 for Between Sessions')
-    .setVersion('1.0.0')
-    .addCookieAuth('access_token', {
-      type: 'apiKey',
-      in: 'cookie',
-      name: 'access_token',
-    })
-    .build();
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+      const isNgrok =
+        origin.endsWith(".ngrok-free.dev") ||
+        origin.endsWith(".ngrok.io") ||
+        origin.endsWith(".ngrok.app");
+      if (isNgrok) return callback(null, true);
+
+      return callback(new Error("CORS blocked"), false);
+    },
+    credentials: true,
+  });
 
   const port = Number(process.env.PORT ?? 4000);
+  await app.listen(port);
 
-  await app.listen(port, 'localhost');
-
-  // eslint-disable-next-line no-console
   console.log(`API listening on http://localhost:${port}/api/v1`);
 }
 
 bootstrap();
-
-
