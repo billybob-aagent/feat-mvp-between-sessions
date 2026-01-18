@@ -18,6 +18,7 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ClinicModule } from './modules/clinic/clinic.module';
+import { LibraryModule } from './modules/library/library.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ClinicModule } from './modules/clinic/clinic.module';
     NotificationsModule,
     AdminModule,
     ClinicModule,
+    LibraryModule,
   ],
   controllers: [AppController],
   providers: [

@@ -39,6 +39,25 @@ enum SubscriptionStatus {
   unpaid
 }
 
+enum LibraryItemStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum FormSignatureRequestStatus {
+  pending
+  signed
+  canceled
+  expired
+}
+
+enum FormSignerRole {
+  CLIENT
+  CLINICIAN
+  WITNESS
+}
+
 model users {
   id                 String   @id @default(uuid()) @db.Uuid
   email              String   @unique
@@ -72,6 +91,10 @@ model clinics {
   memberships   clinic_memberships[]
   therapists    therapists[]
   therapist_invites clinic_therapist_invites[]
+  library_collections library_collections[]
+  library_items       library_items[]
+  library_tags        library_tags[]
+  signature_requests  form_signature_requests[]
 }
 
 model clinic_memberships {
@@ -125,6 +148,7 @@ model therapists {
   billing         billing_customers?
   invoices        invoices[]
   invites         invites[] @relation("TherapistInvites")
+  signature_requests form_signature_requests[] @relation("FormSignatureClinician")
 
   // NEW: responses reviewed by this therapist
   reviewed_responses responses[] @relation("ResponseReviewedBy")
@@ -146,6 +170,7 @@ model clients {
   checkins         checkins[]
   metrics_week     metrics_client_weekly[]
   accepted_invites invites[] @relation("AcceptedInviteClient")
+  signature_requests form_signature_requests[] @relation("FormSignatureClient")
 }
 
 model invites {
@@ -240,6 +265,159 @@ model responses {
   @@index([assignment_id, created_at])
   @@index([assignment_id, client_id, created_at])
   @@index([client_id, created_at])
+}
+
+model library_collections {
+  id          String   @id @default(uuid()) @db.Uuid
+  clinic_id   String   @db.Uuid
+  title       String
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  clinic      clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  items       library_items[]
+
+  @@index([clinic_id])
+}
+
+model library_items {
+  id              String           @id @default(uuid()) @db.Uuid
+  clinic_id       String           @db.Uuid
+  collection_id   String           @db.Uuid
+  slug            String
+  title           String
+  content_type    String
+  metadata        Json
+  sections        Json
+  status          LibraryItemStatus @default(DRAFT)
+  version         Int              @default(1)
+  created_by      String?          @db.Uuid
+  updated_by      String?          @db.Uuid
+  source_file_name String?
+  import_timestamp DateTime?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  clinic          clinics          @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  collection      library_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  versions        library_item_versions[]
+  tags            library_item_tags[]
+  chunks          library_chunks[]
+  signature_requests form_signature_requests[]
+
+  @@index([clinic_id, status])
+  @@index([collection_id, status])
+  @@index([slug])
+  @@unique([clinic_id, slug])
+}
+
+model library_item_versions {
+  id                String   @id @default(uuid()) @db.Uuid
+  item_id           String   @db.Uuid
+  version_number    Int
+  metadata_snapshot Json
+  sections_snapshot Json
+  change_summary    String?
+  created_by        String?  @db.Uuid
+  created_at        DateTime @default(now())
+
+  item              library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@unique([item_id, version_number])
+  @@index([item_id])
+}
+
+model library_tags {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinic_id  String   @db.Uuid
+  name       String
+  created_at DateTime @default(now())
+
+  clinic     clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  items      library_item_tags[]
+
+  @@index([clinic_id])
+  @@unique([clinic_id, name])
+}
+
+model library_item_tags {
+  id         String   @id @default(uuid()) @db.Uuid
+  item_id    String   @db.Uuid
+  tag_id     String   @db.Uuid
+  created_at DateTime @default(now())
+
+  item       library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  tag        library_tags  @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([item_id, tag_id])
+  @@index([tag_id])
+}
+
+model library_chunks {
+  id           String   @id @default(uuid()) @db.Uuid
+  item_id      String   @db.Uuid
+  version_number Int
+  chunk_index  Int
+  heading_path String
+  text         String
+  token_count  Int
+  created_at   DateTime @default(now())
+
+  item         library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  embeddings   embeddings[]
+
+  @@index([item_id, version_number])
+  @@index([heading_path])
+}
+
+model embeddings {
+  id         String   @id @default(uuid()) @db.Uuid
+  chunk_id   String   @db.Uuid
+  vector     Float[]
+  model_name String
+  created_at DateTime @default(now())
+
+  chunk      library_chunks @relation(fields: [chunk_id], references: [id], onDelete: Cascade)
+
+  @@index([chunk_id])
+}
+
+model form_signature_requests {
+  id              String   @id @default(uuid()) @db.Uuid
+  clinic_id       String   @db.Uuid
+  item_id         String   @db.Uuid
+  client_id       String?  @db.Uuid
+  clinician_id    String?  @db.Uuid
+  status          FormSignatureRequestStatus @default(pending)
+  requested_at    DateTime @default(now())
+  due_at          DateTime?
+  pdf_snapshot_ref String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  clinic          clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  item            library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  client          clients? @relation("FormSignatureClient", fields: [client_id], references: [id], onDelete: SetNull)
+  clinician       therapists? @relation("FormSignatureClinician", fields: [clinician_id], references: [id], onDelete: SetNull)
+  signatures      form_signatures[]
+
+  @@index([clinic_id, status])
+  @@index([item_id])
+}
+
+model form_signatures {
+  id              String   @id @default(uuid()) @db.Uuid
+  request_id      String   @db.Uuid
+  signer_role     FormSignerRole
+  signed_at       DateTime @default(now())
+  signature_data  Json
+  pdf_snapshot_ref String
+  created_at      DateTime @default(now())
+
+  request         form_signature_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  @@index([request_id])
 }
 
 model feedback {

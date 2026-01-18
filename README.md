@@ -34,3 +34,21 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Clinical Library
+
+### Ingest PDFs
+
+1) Place the PDF packs in the repo root or set env vars:
+- `FORMS_PDF_PATH`
+- `ASSESSMENTS_PDF_PATH`
+- `THERAPEUTIC_PDF_PATH`
+- `CLINIC_ID` (optional; defaults to the first clinic)
+
+2) Run ingestion:
+
+```
+pnpm ingest:clinical-library
+```
+
+This creates a library collection, items, versions, and chunks for RAG/search.

@@ -8,7 +8,8 @@
     "dev": "node server.js",
     "start": "node server.js",
     "lint": "node --check server.js",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "ingest:clinical-library": "pnpm --dir backend ingest:clinical-library"
   },
   "keywords": [
     "mental-wellness",
