@@ -84,11 +84,13 @@ export async function clinicListAssignments(params: {
   q?: string;
   limit?: number;
   cursor?: string;
+  clientId?: string;
 }): Promise<{ items: ClinicAssignmentListItem[]; nextCursor: string | null }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.clientId) qs.set("clientId", params.clientId);
   return apiFetch(`/clinic/assignments?${qs.toString()}`);
 }
 
@@ -98,6 +100,7 @@ export async function clinicListResponses(params: {
   flagged?: "all" | "flagged" | "unflagged";
   limit?: number;
   cursor?: string;
+  clientId?: string;
 }): Promise<{ items: ClinicResponseListItem[]; nextCursor: string | null }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
@@ -105,6 +108,7 @@ export async function clinicListResponses(params: {
   if (params.flagged) qs.set("flagged", params.flagged);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.clientId) qs.set("clientId", params.clientId);
   return apiFetch(`/clinic/responses?${qs.toString()}`);
 }
 
@@ -112,11 +116,13 @@ export async function clinicListCheckins(params: {
   q?: string;
   limit?: number;
   cursor?: string;
+  clientId?: string;
 }): Promise<{ items: ClinicCheckinListItem[]; nextCursor: string | null }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.clientId) qs.set("clientId", params.clientId);
   return apiFetch(`/clinic/checkins?${qs.toString()}`);
 }
 

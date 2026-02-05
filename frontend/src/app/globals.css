@@ -1,38 +1,13 @@
+@import "../styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #f5f7fa;
-  --foreground: #1f2a37;
-
-  --app-bg: #f5f7fa;
-  --app-surface: #ffffff;
-  --app-surface-2: #eef2f6;
-  --app-border: #d8e0ea;
-  --app-text: #1f2a37;
-  --app-muted: #5b6b7a;
-  --app-accent: #2f6fd3;
-  --app-accent-soft: #e2ebf8;
-  --app-success: #2f7a5a;
-  --app-success-soft: #e3f1ea;
-  --app-warning: #a26714;
-  --app-warning-soft: #f6ead8;
-  --app-danger: #a64a45;
-  --app-danger-soft: #f4e1df;
-  --app-info: #3b6f8f;
-  --app-info-soft: #e2eef5;
-
-  --app-radius-sm: 8px;
-  --app-radius-md: 10px;
-  --app-radius-lg: 14px;
-  --app-radius-xl: 18px;
-}
-
 body {
   color: var(--app-text);
   background: var(--app-bg);
-  font-family: "Avenir Next", "Avenir", "Noto Sans", "Helvetica Neue", sans-serif;
+  font-family: var(--app-font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -63,6 +38,10 @@ body {
 
   input, select, textarea {
     color: inherit;
+  }
+
+  code, pre {
+    font-family: var(--app-font-mono);
   }
 
   :focus-visible {

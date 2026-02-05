@@ -1,12 +1,15 @@
 import type { InputHTMLAttributes } from "react";
 
-type InputProps = InputHTMLAttributes<HTMLInputElement>;
+type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  hasError?: boolean;
+};
 
-export function Input({ className, ...props }: InputProps) {
+export function Input({ className, hasError, ...props }: InputProps) {
   return (
     <input
       {...props}
-      className={`w-full rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text placeholder:text-app-muted shadow-soft ${className ?? ""}`}
+      aria-invalid={hasError || undefined}
+      className={`w-full rounded-md border bg-app-surface px-3 py-2 text-sm text-app-text placeholder:text-app-muted shadow-soft transition focus:border-app-accent focus:ring-2 focus:ring-app-accent/20 ${hasError ? "border-app-danger" : "border-app-border"} ${className ?? ""}`}
     />
   );
 }
