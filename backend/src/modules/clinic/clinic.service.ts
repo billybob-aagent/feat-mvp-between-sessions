@@ -2,11 +2,12 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 import { InviteTherapistDto } from "./dto/invite-therapist.dto";
+import { InviteClientDto } from "./dto/invite-client.dto";
 import { CreateTherapistDto } from "./dto/create-therapist.dto";
 import { AuditService } from "../audit/audit.service";
 import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
-import { InviteStatus } from "@prisma/client";
+import { InviteStatus, UserRole } from "@prisma/client";
 
 export type ClinicDashboardDto = {
   clinic: {
@@ -27,6 +28,7 @@ export type ClinicDashboardDto = {
 
 export type ClinicTherapistListItemDto = {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
   isDisabled: boolean;
@@ -54,6 +56,7 @@ export type ClinicTherapistDetailDto = {
 
 export type ClinicClientListItemDto = {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
   therapistId: string;
@@ -75,6 +78,17 @@ export type ClinicClientDetailDto = {
   responseCount: number;
   checkinCount: number;
   lastCheckinAt: string | null;
+};
+
+export type ClinicInviteListItemDto = {
+  id: string;
+  email: string;
+  status: InviteStatus;
+  isExpired: boolean;
+  expiresAt: string;
+  createdAt: string;
+  therapistId?: string | null;
+  therapistName?: string | null;
 };
 
 export type ClinicAssignmentListItemDto = {
@@ -129,6 +143,25 @@ export class ClinicService {
     return { clinicId: membership.clinic_id, clinic: membership.clinic };
   }
 
+  private async resolveClinicAccess(params: {
+    userId: string;
+    role: UserRole;
+    clinicId?: string | null;
+  }) {
+    if (params.role === UserRole.admin) {
+      if (!params.clinicId) {
+        throw new BadRequestException("clinicId is required for admin access");
+      }
+      const clinic = await this.prisma.clinics.findUnique({
+        where: { id: params.clinicId },
+      });
+      if (!clinic) throw new NotFoundException("Clinic not found");
+      return { clinicId: clinic.id, clinic };
+    }
+
+    return this.requireClinicMembership(params.userId);
+  }
+
   async dashboard(userId: string): Promise<ClinicDashboardDto> {
     const { clinicId, clinic } = await this.requireClinicMembership(userId);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -174,13 +207,27 @@ export class ClinicService {
   async inviteTherapist(
     userId: string,
     dto: InviteTherapistDto,
+    role: UserRole,
     meta?: { ip?: string; userAgent?: string },
   ) {
-    const { clinicId } = await this.requireClinicMembership(userId);
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role,
+      clinicId: dto.clinicId ?? null,
+    });
     const email = dto.email.trim().toLowerCase();
 
     const existing = await this.prisma.users.findUnique({ where: { email } });
     if (existing) throw new BadRequestException("Email already registered");
+
+    const pendingInvite = await this.prisma.clinic_therapist_invites.findFirst({
+      where: {
+        clinic_id: clinicId,
+        email,
+        status: InviteStatus.pending,
+      },
+    });
+    if (pendingInvite) throw new BadRequestException("Invite already pending for this email");
 
     const token = randomUUID().replace(/-/g, "");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -206,6 +253,383 @@ export class ClinicService {
     });
 
     return { token: invite.token, expires_at: invite.expires_at };
+  }
+
+  async listTherapistInvites(userId: string, opts: { clinicId?: string | null; role: UserRole; status?: InviteStatus | "all" }) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: opts.role,
+      clinicId: opts.clinicId ?? null,
+    });
+    const now = new Date();
+    const where: any = { clinic_id: clinicId };
+    if (opts.status && opts.status !== "all") {
+      if (opts.status === InviteStatus.expired) {
+        where.status = InviteStatus.pending;
+        where.expires_at = { lt: now };
+      } else {
+        where.status = opts.status;
+      }
+    }
+
+    const rows = await this.prisma.clinic_therapist_invites.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        expires_at: true,
+        created_at: true,
+      },
+    });
+
+    return rows.map((row) => {
+      const isExpired = row.status === InviteStatus.pending && row.expires_at.getTime() < now.getTime();
+      return {
+        id: row.id,
+        email: row.email,
+        status: row.status,
+        isExpired,
+        expiresAt: row.expires_at.toISOString(),
+        createdAt: row.created_at.toISOString(),
+      } satisfies ClinicInviteListItemDto;
+    });
+  }
+
+  async resendTherapistInvite(
+    userId: string,
+    params: { inviteId: string; clinicId?: string | null; role: UserRole },
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: params.role,
+      clinicId: params.clinicId ?? null,
+    });
+    const invite = await this.prisma.clinic_therapist_invites.findFirst({
+      where: { id: params.inviteId, clinic_id: clinicId },
+    });
+    if (!invite) throw new NotFoundException("Invite not found");
+    if (invite.status === InviteStatus.accepted) {
+      throw new BadRequestException("Invite already accepted");
+    }
+    if (invite.status === InviteStatus.revoked) {
+      throw new BadRequestException("Invite revoked");
+    }
+
+    const token = randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const updated = await this.prisma.clinic_therapist_invites.update({
+      where: { id: invite.id },
+      data: {
+        token,
+        status: InviteStatus.pending,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.therapist_invite.resent",
+      entityType: "clinic_therapist_invite",
+      entityId: updated.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: updated.email },
+    });
+
+    return { token: updated.token, expires_at: updated.expires_at };
+  }
+
+  async revokeTherapistInvite(
+    userId: string,
+    params: { inviteId: string; clinicId?: string | null; role: UserRole },
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: params.role,
+      clinicId: params.clinicId ?? null,
+    });
+    const invite = await this.prisma.clinic_therapist_invites.findFirst({
+      where: { id: params.inviteId, clinic_id: clinicId },
+    });
+    if (!invite) throw new NotFoundException("Invite not found");
+    if (invite.status === InviteStatus.accepted) {
+      throw new BadRequestException("Invite already accepted");
+    }
+
+    const updated = await this.prisma.clinic_therapist_invites.update({
+      where: { id: invite.id },
+      data: { status: InviteStatus.revoked },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.therapist_invite.revoked",
+      entityType: "clinic_therapist_invite",
+      entityId: updated.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: updated.email },
+    });
+
+    return { ok: true };
+  }
+
+  async inviteClient(
+    userId: string,
+    dto: InviteClientDto,
+    role: UserRole,
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role,
+      clinicId: dto.clinicId ?? null,
+    });
+    const email = dto.email.trim().toLowerCase();
+
+    const existing = await this.prisma.users.findUnique({ where: { email } });
+    if (existing) throw new BadRequestException("Email already registered");
+
+    const therapistId = dto.therapistId
+      ? dto.therapistId
+      : await this.resolveDefaultTherapistId(clinicId);
+
+    const therapist = await this.prisma.therapists.findFirst({
+      where: { id: therapistId, clinic_id: clinicId },
+      select: { id: true },
+    });
+    if (!therapist) {
+      throw new BadRequestException("Therapist not found for clinic");
+    }
+
+    const existingInvite = await this.prisma.invites.findFirst({
+      where: {
+        email,
+        status: InviteStatus.pending,
+        therapist: { clinic_id: clinicId },
+      },
+    });
+    if (existingInvite) {
+      throw new BadRequestException("Invite already pending for this email");
+    }
+
+    const token = randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const invite = await this.prisma.invites.create({
+      data: {
+        therapist_id: therapistId,
+        email,
+        token,
+        status: InviteStatus.pending,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.client_invite.pending",
+      entityType: "invite",
+      entityId: invite.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email, therapistId },
+    });
+
+    return { token: invite.token, expires_at: invite.expires_at };
+  }
+
+  private async resolveDefaultTherapistId(clinicId: string) {
+    const therapists = await this.prisma.therapists.findMany({
+      where: { clinic_id: clinicId },
+      select: { id: true },
+      orderBy: { created_at: "asc" },
+      take: 2,
+    });
+
+    if (therapists.length === 1) return therapists[0].id;
+    if (therapists.length === 0) {
+      throw new BadRequestException("No therapists available for client assignment");
+    }
+
+    throw new BadRequestException("Therapist assignment required for this clinic");
+  }
+
+  async listClientInvites(userId: string, opts: { clinicId?: string | null; role: UserRole; status?: InviteStatus | "all" }) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: opts.role,
+      clinicId: opts.clinicId ?? null,
+    });
+    const now = new Date();
+    const where: any = {
+      therapist: { clinic_id: clinicId },
+    };
+    if (opts.status && opts.status !== "all") {
+      if (opts.status === InviteStatus.expired) {
+        where.status = InviteStatus.pending;
+        where.expires_at = { lt: now };
+      } else {
+        where.status = opts.status;
+      }
+    }
+
+    const rows = await this.prisma.invites.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        expires_at: true,
+        created_at: true,
+        therapist: { select: { id: true, full_name: true } },
+      },
+    });
+
+    return rows.map((row) => {
+      const isExpired = row.status === InviteStatus.pending && row.expires_at.getTime() < now.getTime();
+      return {
+        id: row.id,
+        email: row.email,
+        status: row.status,
+        isExpired,
+        expiresAt: row.expires_at.toISOString(),
+        createdAt: row.created_at.toISOString(),
+        therapistId: row.therapist.id,
+        therapistName: row.therapist.full_name ?? null,
+      } satisfies ClinicInviteListItemDto;
+    });
+  }
+
+  async resendClientInvite(
+    userId: string,
+    params: { inviteId: string; clinicId?: string | null; role: UserRole },
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: params.role,
+      clinicId: params.clinicId ?? null,
+    });
+    const invite = await this.prisma.invites.findFirst({
+      where: { id: params.inviteId, therapist: { clinic_id: clinicId } },
+    });
+    if (!invite) throw new NotFoundException("Invite not found");
+    if (invite.status === InviteStatus.accepted) {
+      throw new BadRequestException("Invite already accepted");
+    }
+    if (invite.status === InviteStatus.revoked) {
+      throw new BadRequestException("Invite revoked");
+    }
+
+    const token = randomUUID().replace(/-/g, "");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const updated = await this.prisma.invites.update({
+      where: { id: invite.id },
+      data: {
+        token,
+        status: InviteStatus.pending,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.client_invite.resent",
+      entityType: "invite",
+      entityId: updated.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: updated.email },
+    });
+
+    return { token: updated.token, expires_at: updated.expires_at };
+  }
+
+  async revokeClientInvite(
+    userId: string,
+    params: { inviteId: string; clinicId?: string | null; role: UserRole },
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: params.role,
+      clinicId: params.clinicId ?? null,
+    });
+    const invite = await this.prisma.invites.findFirst({
+      where: { id: params.inviteId, therapist: { clinic_id: clinicId } },
+    });
+    if (!invite) throw new NotFoundException("Invite not found");
+    if (invite.status === InviteStatus.accepted) {
+      throw new BadRequestException("Invite already accepted");
+    }
+
+    const updated = await this.prisma.invites.update({
+      where: { id: invite.id },
+      data: { status: InviteStatus.revoked },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.client_invite.revoked",
+      entityType: "invite",
+      entityId: updated.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: updated.email },
+    });
+
+    return { ok: true };
+  }
+
+  async disableUser(
+    userId: string,
+    params: { targetUserId: string; clinicId?: string | null; role: UserRole },
+    meta?: { ip?: string; userAgent?: string },
+  ) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: params.role,
+      clinicId: params.clinicId ?? null,
+    });
+
+    const target = await this.prisma.users.findUnique({
+      where: { id: params.targetUserId },
+      include: {
+        therapist: { select: { clinic_id: true } },
+        client: { select: { therapist: { select: { clinic_id: true } } } },
+        clinic_memberships: { select: { clinic_id: true } },
+      },
+    });
+    if (!target) throw new NotFoundException("User not found");
+
+    const clinicMatch =
+      target.therapist?.clinic_id === clinicId ||
+      target.client?.therapist?.clinic_id === clinicId ||
+      target.clinic_memberships.some((m) => m.clinic_id === clinicId);
+
+    if (!clinicMatch) throw new ForbiddenException("User not in clinic");
+
+    await this.prisma.users.update({
+      where: { id: target.id },
+      data: { is_disabled: true },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "clinic.user_disabled",
+      entityType: "user",
+      entityId: target.id,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: target.email },
+    });
+
+    return { ok: true };
   }
 
   async createTherapist(
@@ -257,8 +681,12 @@ export class ClinicService {
     };
   }
 
-  async listTherapists(userId: string, opts: { q: string | null; limit: number; cursor: string | null }) {
-    const { clinicId } = await this.requireClinicMembership(userId);
+  async listTherapists(userId: string, opts: { q: string | null; limit: number; cursor: string | null; clinicId?: string | null; role: UserRole }) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: opts.role,
+      clinicId: opts.clinicId ?? null,
+    });
     const where: any = { clinic_id: clinicId };
     if (opts.q) {
       where.OR = [
@@ -283,7 +711,7 @@ export class ClinicService {
         organization: true,
         timezone: true,
         created_at: true,
-        user: { select: { email: true, is_disabled: true } },
+        user: { select: { id: true, email: true, is_disabled: true } },
         _count: { select: { clients: true, assignments: true } },
       },
     });
@@ -293,6 +721,7 @@ export class ClinicService {
 
     const items: ClinicTherapistListItemDto[] = sliced.map((row) => ({
       id: row.id,
+      userId: row.user.id,
       fullName: row.full_name,
       email: row.user.email,
       isDisabled: row.user.is_disabled,
@@ -361,8 +790,12 @@ export class ClinicService {
     };
   }
 
-  async listClients(userId: string, opts: { q: string | null; limit: number; cursor: string | null }) {
-    const { clinicId } = await this.requireClinicMembership(userId);
+  async listClients(userId: string, opts: { q: string | null; limit: number; cursor: string | null; clinicId?: string | null; role: UserRole }) {
+    const { clinicId } = await this.resolveClinicAccess({
+      userId,
+      role: opts.role,
+      clinicId: opts.clinicId ?? null,
+    });
     const where: any = { therapist: { clinic_id: clinicId } };
     if (opts.q) {
       where.OR = [
@@ -386,7 +819,7 @@ export class ClinicService {
         id: true,
         full_name: true,
         created_at: true,
-        user: { select: { email: true } },
+        user: { select: { id: true, email: true } },
         therapist: { select: { id: true, full_name: true } },
         _count: { select: { assignments: true, responses: true, checkins: true } },
       },
@@ -397,6 +830,7 @@ export class ClinicService {
 
     const items: ClinicClientListItemDto[] = sliced.map((row) => ({
       id: row.id,
+      userId: row.user.id,
       fullName: row.full_name,
       email: row.user.email,
       therapistId: row.therapist.id,

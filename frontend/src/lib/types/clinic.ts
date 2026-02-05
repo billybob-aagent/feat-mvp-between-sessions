@@ -17,6 +17,7 @@ export type ClinicDashboard = {
 
 export type ClinicTherapistListItem = {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
   isDisabled: boolean;
@@ -55,6 +56,7 @@ export type ClinicTherapistCreateResult = {
 
 export type ClinicClientListItem = {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
   therapistId: string;
@@ -131,4 +133,15 @@ export type ClinicSettings = {
     logoUrl: string | null;
     primaryColor: string | null;
   };
+};
+
+export type ClinicInviteListItem = {
+  id: string;
+  email: string;
+  status: string;
+  isExpired: boolean;
+  expiresAt: string;
+  createdAt: string;
+  therapistId?: string | null;
+  therapistName?: string | null;
 };
