@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // Enums
@@ -13,6 +14,7 @@ enum UserRole {
   therapist
   client
   admin
+  CLINIC_ADMIN
 }
 
 enum InviteStatus {
@@ -20,6 +22,11 @@ enum InviteStatus {
   accepted
   expired
   revoked
+}
+
+enum AssignmentStatus {
+  draft
+  published
 }
 
 enum SubscriptionStatus {
@@ -32,73 +39,180 @@ enum SubscriptionStatus {
   unpaid
 }
 
+enum LibraryItemStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum FormSignatureRequestStatus {
+  pending
+  signed
+  canceled
+  expired
+}
+
+enum FormSignerRole {
+  CLIENT
+  CLINICIAN
+  WITNESS
+}
+
+enum SupervisorEscalationReason {
+  MISSED_INTERVENTIONS
+  LOW_COMPLETION
+  NO_ACTIVITY
+  OTHER
+}
+
+enum SupervisorEscalationStatus {
+  OPEN
+  RESOLVED
+}
+
+enum AiPurpose {
+  DOCUMENTATION
+  ADHERENCE_REVIEW
+  SUPERVISOR_SUMMARY
+}
+
+enum AiRequestStatus {
+  ALLOWED
+  DENIED
+}
+
 model users {
-  id                String   @id @default(uuid()) @db.Uuid
-  email             String   @unique
-  password_hash     String
-  role              UserRole
-  email_verified_at DateTime?
-  last_login_at     DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id                 String   @id @default(uuid()) @db.Uuid
+  email              String   @unique
+  password_hash      String
+  role               UserRole
+  is_disabled        Boolean  @default(false)
+  email_verified_at  DateTime?
+  last_login_at      DateTime?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  therapist therapists?
-  client    clients?
+  therapist          therapists?
+  client             clients?
 
-  sessions  sessions[]
-  audit_logs audit_logs[]
-  notifications notifications[]
+  sessions           sessions[]
+  audit_logs         audit_logs[]
+  notifications      notifications[]
+  clinic_memberships clinic_memberships[]
+  clinic_therapist_invites_accepted clinic_therapist_invites[] @relation("ClinicInviteAcceptedUser")
+}
+
+model clinics {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  timezone      String
+  logo_url      String?
+  primary_color String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  memberships   clinic_memberships[]
+  therapists    therapists[]
+  therapist_invites clinic_therapist_invites[]
+  library_collections library_collections[]
+  library_items       library_items[]
+  library_tags        library_tags[]
+  signature_requests  form_signature_requests[]
+}
+
+model clinic_memberships {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinic_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  role       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  clinic     clinics @relation(fields: [clinic_id], references: [id])
+  user       users   @relation(fields: [user_id], references: [id])
+
+  @@unique([clinic_id, user_id])
+}
+
+model clinic_therapist_invites {
+  id               String       @id @default(uuid()) @db.Uuid
+  clinic_id        String       @db.Uuid
+  email            String
+  token            String       @unique
+  status           InviteStatus @default(pending)
+  expires_at       DateTime
+  accepted_user_id String?      @db.Uuid
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  clinic           clinics @relation(fields: [clinic_id], references: [id])
+  accepted_user    users?  @relation("ClinicInviteAcceptedUser", fields: [accepted_user_id], references: [id])
+
+  @@index([clinic_id, status])
+  @@index([email])
 }
 
 model therapists {
-  id          String   @id @default(uuid()) @db.Uuid
-  user_id     String   @unique @db.Uuid
-  full_name   String
-  organization String?
-  timezone    String   @default("UTC")
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String   @unique @db.Uuid
+  clinic_id       String?  @db.Uuid
+  full_name       String
+  organization    String?
+  timezone        String   @default("UTC")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  user        users    @relation(fields: [user_id], references: [id])
-  clients     clients[]
-  prompts     prompts[]
-  assignments assignments[]
-  feedback    feedback[]
-  billing     billing_customers?
-  invoices    invoices[]
-  invites     invites[] @relation("TherapistInvites")
+  user            users    @relation(fields: [user_id], references: [id])
+  clinic          clinics? @relation(fields: [clinic_id], references: [id])
+  clients         clients[]
+  prompts         prompts[]
+  assignments     assignments[]
+  feedback        feedback[]
+  billing         billing_customers?
+  invoices        invoices[]
+  invites         invites[] @relation("TherapistInvites")
+  signature_requests form_signature_requests[] @relation("FormSignatureClinician")
+
+  // NEW: responses reviewed by this therapist
+  reviewed_responses responses[] @relation("ResponseReviewedBy")
+  starred_responses  responses[] @relation("ResponseStarredBy")
 }
 
 model clients {
-  id           String   @id @default(uuid()) @db.Uuid
-  user_id      String   @unique @db.Uuid
-  therapist_id String   @db.Uuid
-  full_name    String
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id               String   @id @default(uuid()) @db.Uuid
+  user_id          String   @unique @db.Uuid
+  therapist_id     String   @db.Uuid
+  full_name        String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  user         users       @relation(fields: [user_id], references: [id])
-  therapist    therapists  @relation(fields: [therapist_id], references: [id])
-  assignments  assignments[]
-  responses    responses[]
-  checkins     checkins[]
-  metrics_week metrics_client_weekly[]
+  user             users       @relation(fields: [user_id], references: [id])
+  therapist        therapists  @relation(fields: [therapist_id], references: [id])
+  assignments      assignments[]
+  responses        responses[]
+  checkins         checkins[]
+  metrics_week     metrics_client_weekly[]
   accepted_invites invites[] @relation("AcceptedInviteClient")
+  signature_requests form_signature_requests[] @relation("FormSignatureClient")
 }
 
 model invites {
-  id            String     @id @default(uuid()) @db.Uuid
-  therapist_id  String     @db.Uuid
-  email         String
-  token         String     @unique
-  status        InviteStatus @default(pending)
-  expires_at    DateTime
-  accepted_client_id String? @db.Uuid
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
+  id                 String       @id @default(uuid()) @db.Uuid
+  therapist_id       String       @db.Uuid
+  email              String
+  token              String       @unique
+  status             InviteStatus @default(pending)
+  expires_at         DateTime
+  accepted_client_id String?      @db.Uuid
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
 
-  therapist       therapists @relation("TherapistInvites", fields: [therapist_id], references: [id])
-  accepted_client clients?   @relation("AcceptedInviteClient", fields: [accepted_client_id], references: [id])
+  therapist          therapists @relation("TherapistInvites", fields: [therapist_id], references: [id])
+  accepted_client    clients?   @relation("AcceptedInviteClient", fields: [accepted_client_id], references: [id])
 }
 
 model prompts {
@@ -117,32 +231,246 @@ model assignments {
   id            String    @id @default(uuid()) @db.Uuid
   therapist_id  String    @db.Uuid
   client_id     String    @db.Uuid
-  prompt_id     String    @db.Uuid
+  prompt_id     String?   @db.Uuid
+  title         String?
+  description   String?
+  status        AssignmentStatus @default(published)
+  published_at  DateTime?
   due_date      DateTime?
   recurrence    String?   // e.g., daily, weekly
+  library_item_id String? @db.Uuid
+  library_item_version Int?
+  library_source_title String?
+  library_source_slug  String?
+  library_source_content_type String?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 
   therapist     therapists @relation(fields: [therapist_id], references: [id])
   client        clients    @relation(fields: [client_id], references: [id])
-  prompt        prompts    @relation(fields: [prompt_id], references: [id])
+  prompt        prompts?   @relation(fields: [prompt_id], references: [id])
   responses     responses[]
+  library_item  library_items? @relation(fields: [library_item_id], references: [id], onDelete: SetNull)
+
+  @@index([therapist_id, status, created_at])
+  @@index([client_id, status, created_at])
+  @@index([title])
+  @@index([library_item_id])
 }
 
 model responses {
-  id               String    @id @default(uuid()) @db.Uuid
-  assignment_id    String    @db.Uuid
-  client_id        String    @db.Uuid
-  text_cipher      Bytes     // AES-256-GCM ciphertext
-  text_nonce       Bytes     // IV/nonce
-  text_tag         Bytes     // auth tag
-  voice_storage_key String?  // reference to file storage key
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id                  String   @id @default(uuid()) @db.Uuid
+  assignment_id       String   @db.Uuid
+  client_id           String   @db.Uuid
 
-  assignment assignments @relation(fields: [assignment_id], references: [id])
-  client     clients     @relation(fields: [client_id], references: [id])
-  feedback   feedback[]
+  // Client response (encrypted)
+  mood                Int      @default(5)
+  text_cipher         Bytes
+  text_nonce          Bytes
+  text_tag            Bytes
+  prompt_cipher       Bytes?
+  prompt_nonce        Bytes?
+  prompt_tag          Bytes?
+  voice_storage_key   String?
+
+  // Therapist workflow
+  reviewed_at         DateTime?
+  reviewed_by_id      String?  @db.Uuid
+  flagged_at          DateTime?
+  starred_at          DateTime?
+  starred_by_id       String?  @db.Uuid
+
+  // Therapist note (ENCRYPTED)
+  therapist_note_cipher Bytes?
+  therapist_note_nonce  Bytes?
+  therapist_note_tag    Bytes?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  assignment           assignments @relation(fields: [assignment_id], references: [id])
+  client               clients     @relation(fields: [client_id], references: [id])
+  feedback             feedback[]
+
+  // Reviewed-by therapist relation (named to avoid ambiguity)
+  reviewed_by          therapists? @relation("ResponseReviewedBy", fields: [reviewed_by_id], references: [id])
+  starred_by           therapists? @relation("ResponseStarredBy", fields: [starred_by_id], references: [id])
+
+  @@index([assignment_id, created_at])
+  @@index([assignment_id, client_id, created_at])
+  @@index([client_id, created_at])
+}
+
+model library_collections {
+  id          String   @id @default(uuid()) @db.Uuid
+  clinic_id   String   @db.Uuid
+  title       String
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  clinic      clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  items       library_items[]
+
+  @@index([clinic_id])
+}
+
+model library_items {
+  id              String           @id @default(uuid()) @db.Uuid
+  clinic_id       String           @db.Uuid
+  collection_id   String           @db.Uuid
+  slug            String
+  title           String
+  content_type    String
+  metadata        Json
+  sections        Json
+  status          LibraryItemStatus @default(DRAFT)
+  version         Int              @default(1)
+  created_by      String?          @db.Uuid
+  updated_by      String?          @db.Uuid
+  source_file_name String?
+  import_timestamp DateTime?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  clinic          clinics          @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  collection      library_collections @relation(fields: [collection_id], references: [id], onDelete: Cascade)
+  versions        library_item_versions[]
+  tags            library_item_tags[]
+  chunks          library_chunks[]
+  signature_requests form_signature_requests[]
+  decisions       library_item_decisions[]
+  assignments     assignments[]
+
+  @@index([clinic_id, status])
+  @@index([collection_id, status])
+  @@index([slug])
+  @@unique([clinic_id, slug])
+}
+
+model library_item_decisions {
+  id            String          @id @default(uuid()) @db.Uuid
+  item_id       String          @db.Uuid
+  actor_user_id String?         @db.Uuid
+  actor_role    UserRole
+  action        String
+  from_status   LibraryItemStatus
+  to_status     LibraryItemStatus
+  reason        String?
+  created_at    DateTime        @default(now())
+
+  item          library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([item_id, created_at])
+  @@index([to_status, created_at])
+}
+
+model library_item_versions {
+  id                String   @id @default(uuid()) @db.Uuid
+  item_id           String   @db.Uuid
+  version_number    Int
+  metadata_snapshot Json
+  sections_snapshot Json
+  change_summary    String?
+  created_by        String?  @db.Uuid
+  created_at        DateTime @default(now())
+
+  item              library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@unique([item_id, version_number])
+  @@index([item_id])
+}
+
+model library_tags {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinic_id  String   @db.Uuid
+  name       String
+  created_at DateTime @default(now())
+
+  clinic     clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  items      library_item_tags[]
+
+  @@index([clinic_id])
+  @@unique([clinic_id, name])
+}
+
+model library_item_tags {
+  id         String   @id @default(uuid()) @db.Uuid
+  item_id    String   @db.Uuid
+  tag_id     String   @db.Uuid
+  created_at DateTime @default(now())
+
+  item       library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  tag        library_tags  @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([item_id, tag_id])
+  @@index([tag_id])
+}
+
+model library_chunks {
+  id           String   @id @default(uuid()) @db.Uuid
+  item_id      String   @db.Uuid
+  version_number Int
+  chunk_index  Int
+  heading_path String
+  text         String
+  token_count  Int
+  created_at   DateTime @default(now())
+
+  item         library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  embeddings   embeddings[]
+
+  @@index([item_id, version_number])
+  @@index([heading_path])
+}
+
+model embeddings {
+  id         String   @id @default(uuid()) @db.Uuid
+  chunk_id   String   @db.Uuid
+  vector     Float[]
+  model_name String
+  created_at DateTime @default(now())
+
+  chunk      library_chunks @relation(fields: [chunk_id], references: [id], onDelete: Cascade)
+
+  @@index([chunk_id])
+}
+
+model form_signature_requests {
+  id              String   @id @default(uuid()) @db.Uuid
+  clinic_id       String   @db.Uuid
+  item_id         String   @db.Uuid
+  client_id       String?  @db.Uuid
+  clinician_id    String?  @db.Uuid
+  status          FormSignatureRequestStatus @default(pending)
+  requested_at    DateTime @default(now())
+  due_at          DateTime?
+  pdf_snapshot_ref String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  clinic          clinics @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  item            library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  client          clients? @relation("FormSignatureClient", fields: [client_id], references: [id], onDelete: SetNull)
+  clinician       therapists? @relation("FormSignatureClinician", fields: [clinician_id], references: [id], onDelete: SetNull)
+  signatures      form_signatures[]
+
+  @@index([clinic_id, status])
+  @@index([item_id])
+}
+
+model form_signatures {
+  id              String   @id @default(uuid()) @db.Uuid
+  request_id      String   @db.Uuid
+  signer_role     FormSignerRole
+  signed_at       DateTime @default(now())
+  signature_data  Json
+  pdf_snapshot_ref String
+  created_at      DateTime @default(now())
+
+  request         form_signature_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  @@index([request_id])
 }
 
 model feedback {
@@ -155,8 +483,8 @@ model feedback {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  response   responses  @relation(fields: [response_id], references: [id])
-  therapist  therapists @relation(fields: [therapist_id], references: [id])
+  response      responses  @relation(fields: [response_id], references: [id])
+  therapist     therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model checkins {
@@ -169,13 +497,14 @@ model checkins {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
-  client clients @relation(fields: [client_id], references: [id])
+  client       clients @relation(fields: [client_id], references: [id])
 }
 
 model notifications {
   id           String    @id @default(uuid()) @db.Uuid
   user_id      String    @db.Uuid
   type         String
+  dedupe_key   String?   @unique
   data_cipher  Bytes?
   data_nonce   Bytes?
   data_tag     Bytes?
@@ -183,7 +512,7 @@ model notifications {
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
 
-  user users @relation(fields: [user_id], references: [id])
+  user         users @relation(fields: [user_id], references: [id])
 }
 
 model billing_customers {
@@ -197,7 +526,7 @@ model billing_customers {
   created_at             DateTime @default(now())
   updated_at             DateTime @updatedAt
 
-  therapist therapists @relation(fields: [therapist_id], references: [id])
+  therapist              therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model invoices {
@@ -210,7 +539,7 @@ model invoices {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  therapist therapists @relation(fields: [therapist_id], references: [id])
+  therapist          therapists @relation(fields: [therapist_id], references: [id])
 }
 
 model audit_logs {
@@ -225,32 +554,116 @@ model audit_logs {
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
 
-  user users? @relation(fields: [user_id], references: [id])
+  user        users? @relation(fields: [user_id], references: [id])
 }
 
 model sessions {
-  id           String   @id @default(uuid()) @db.Uuid
-  user_id      String   @db.Uuid
-  refresh_token String  @unique
-  valid        Boolean  @default(true)
-  last_seen_at DateTime?
-  ip           String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
-  user users @relation(fields: [user_id], references: [id])
-}
-
-model metrics_client_weekly {
   id            String   @id @default(uuid()) @db.Uuid
-  client_id     String   @db.Uuid
-  week_start    DateTime
-  assignments_assigned Int @default(0)
-  responses_submitted  Int @default(0)
-  avg_mood      Float?
+  user_id       String   @db.Uuid
+  refresh_token String   @unique
+  valid         Boolean  @default(true)
+  last_seen_at  DateTime?
+  ip            String?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  client clients @relation(fields: [client_id], references: [id])
+  user          users @relation(fields: [user_id], references: [id])
+}
+
+model metrics_client_weekly {
+  id                  String   @id @default(uuid()) @db.Uuid
+  client_id           String   @db.Uuid
+  week_start          DateTime
+  assignments_assigned Int     @default(0)
+  responses_submitted  Int     @default(0)
+  avg_mood            Float?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  client              clients @relation(fields: [client_id], references: [id])
   @@unique([client_id, week_start])
+}
+
+model external_access_tokens {
+  id                 String   @id @default(uuid()) @db.Uuid
+  token_hash         String   @unique
+  clinic_id          String   @db.Uuid
+  client_id          String?  @db.Uuid
+  report_type        String
+  period_start       DateTime @db.Date
+  period_end         DateTime @db.Date
+  program            String?
+  expires_at         DateTime
+  revoked_at         DateTime?
+  created_by_user_id String   @db.Uuid
+  created_at         DateTime @default(now())
+
+  uses               external_access_token_uses[]
+
+  @@index([clinic_id])
+  @@index([client_id])
+  @@index([expires_at])
+  @@index([created_by_user_id])
+}
+
+model external_access_token_uses {
+  id          String   @id @default(uuid()) @db.Uuid
+  token_id    String   @db.Uuid
+  used_at     DateTime @default(now())
+  ip          String?
+  user_agent  String?
+  path        String
+  status_code Int
+
+  token       external_access_tokens @relation(fields: [token_id], references: [id])
+
+  @@index([token_id])
+}
+
+model supervisor_escalations {
+  id                     String                     @id @default(uuid()) @db.Uuid
+  clinic_id              String                     @db.Uuid
+  client_id              String                     @db.Uuid
+  period_start           DateTime                   @db.Date
+  period_end             DateTime                   @db.Date
+  reason                 SupervisorEscalationReason
+  note                   String?
+  created_by_user_id     String                     @db.Uuid
+  assign_to_therapist_id String?                    @db.Uuid
+  status                 SupervisorEscalationStatus @default(OPEN)
+  created_at             DateTime                   @default(now())
+  resolved_at            DateTime?
+
+  @@index([clinic_id])
+  @@index([client_id])
+  @@index([created_by_user_id])
+  @@index([assign_to_therapist_id])
+}
+
+model ai_clinic_settings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  clinic_id            String   @unique @db.Uuid
+  enabled              Boolean  @default(false)
+  allow_client_facing  Boolean  @default(false)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  @@index([clinic_id])
+}
+
+model ai_request_logs {
+  id              String          @id @default(uuid()) @db.Uuid
+  clinic_id       String          @db.Uuid
+  user_id         String          @db.Uuid
+  role            String
+  purpose         AiPurpose
+  status          AiRequestStatus
+  denial_reason   String?
+  input_hash      String
+  sanitized_hash  String
+  redaction_stats Json
+  created_at      DateTime        @default(now())
+
+  @@index([clinic_id])
+  @@index([user_id])
 }

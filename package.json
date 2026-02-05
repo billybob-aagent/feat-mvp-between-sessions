@@ -18,5 +18,12 @@
     "web"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.51.0",
+    "prisma": "^6.19.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.1"
+  }
 }

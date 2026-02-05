@@ -201,3 +201,21 @@ npm --prefix frontend run dev
 ```
 
 By default, the frontend runs on `http://localhost:3000` (or the next available port) and the backend runs on `http://localhost:4000/api/v1` (see `backend/src/main.ts` for the global prefix).
+
+## Clinical Library
+
+### Ingest PDFs
+
+1) Place the PDF packs in the repo root or set env vars:
+- `FORMS_PDF_PATH`
+- `ASSESSMENTS_PDF_PATH`
+- `THERAPEUTIC_PDF_PATH`
+- `CLINIC_ID` (optional; defaults to the first clinic)
+
+2) Run ingestion:
+
+```bash
+npm run ingest:clinical-library
+```
+
+This creates a library collection, items, versions, and chunks for RAG/search.
