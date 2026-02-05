@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length } from "class-validator";
+import { IsEmail, IsOptional, IsString, IsUUID, Length } from "class-validator";
 
 export class InviteTherapistDto {
   @IsEmail()
@@ -8,4 +8,8 @@ export class InviteTherapistDto {
   @IsString()
   @Length(2, 120)
   fullName?: string;
+
+  @IsOptional()
+  @IsUUID()
+  clinicId?: string;
 }

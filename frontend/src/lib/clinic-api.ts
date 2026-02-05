@@ -12,6 +12,7 @@ import {
   ClinicTherapistListItem,
   ClinicTherapistInvite,
   ClinicTherapistCreateResult,
+  ClinicInviteListItem,
 } from "@/lib/types/clinic";
 
 export async function clinicDashboard(): Promise<ClinicDashboard> {
@@ -22,11 +23,13 @@ export async function clinicListTherapists(params: {
   q?: string;
   limit?: number;
   cursor?: string;
+  clinicId?: string;
 }): Promise<{ items: ClinicTherapistListItem[]; nextCursor: string | null }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
   return apiFetch(`/clinic/therapists?${qs.toString()}`);
 }
 
@@ -37,6 +40,7 @@ export async function clinicGetTherapist(id: string): Promise<ClinicTherapistDet
 export async function clinicInviteTherapist(dto: {
   email: string;
   fullName?: string;
+  clinicId?: string;
 }): Promise<ClinicTherapistInvite> {
   const res = await apiFetch<{ token: string; expires_at: string | null }>(
     "/clinic/therapists/invite",
@@ -68,12 +72,98 @@ export async function clinicListClients(params: {
   q?: string;
   limit?: number;
   cursor?: string;
+  clinicId?: string;
 }): Promise<{ items: ClinicClientListItem[]; nextCursor: string | null }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.limit) qs.set("limit", String(params.limit));
   if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
   return apiFetch(`/clinic/clients?${qs.toString()}`);
+}
+
+export async function clinicListTherapistInvites(params: {
+  status?: string;
+  clinicId?: string;
+}): Promise<ClinicInviteListItem[]> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/therapists/invites?${qs.toString()}`);
+}
+
+export async function clinicResendTherapistInvite(params: {
+  inviteId: string;
+  clinicId?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/therapists/invites/${encodeURIComponent(params.inviteId)}/resend?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+
+export async function clinicRevokeTherapistInvite(params: {
+  inviteId: string;
+  clinicId?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/therapists/invites/${encodeURIComponent(params.inviteId)}/revoke?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+
+export async function clinicInviteClient(dto: {
+  email: string;
+  therapistId?: string;
+  clinicId?: string;
+}) {
+  return apiFetch("/clinic/clients/invite", {
+    method: "POST",
+    body: JSON.stringify(dto),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function clinicListClientInvites(params: {
+  status?: string;
+  clinicId?: string;
+}): Promise<ClinicInviteListItem[]> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/clients/invites?${qs.toString()}`);
+}
+
+export async function clinicResendClientInvite(params: {
+  inviteId: string;
+  clinicId?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/clients/invites/${encodeURIComponent(params.inviteId)}/resend?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+
+export async function clinicRevokeClientInvite(params: {
+  inviteId: string;
+  clinicId?: string;
+}) {
+  const qs = new URLSearchParams();
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/clients/invites/${encodeURIComponent(params.inviteId)}/revoke?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+
+export async function clinicDisableUser(params: { userId: string; clinicId?: string }) {
+  const qs = new URLSearchParams();
+  if (params.clinicId) qs.set("clinicId", params.clinicId);
+  return apiFetch(`/clinic/users/${encodeURIComponent(params.userId)}/disable?${qs.toString()}`, {
+    method: "POST",
+  });
 }
 
 export async function clinicGetClient(id: string): Promise<ClinicClientDetail> {

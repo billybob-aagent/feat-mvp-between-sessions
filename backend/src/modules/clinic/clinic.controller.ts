@@ -3,9 +3,10 @@ import { ClinicService } from "./clinic.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
-import { UserRole } from "@prisma/client";
+import { InviteStatus, UserRole } from "@prisma/client";
 import { UpdateClinicSettingsDto } from "./dto/update-clinic-settings.dto";
 import { InviteTherapistDto } from "./dto/invite-therapist.dto";
+import { InviteClientDto } from "./dto/invite-client.dto";
 import { CreateTherapistDto } from "./dto/create-therapist.dto";
 
 @Controller("clinic")
@@ -20,33 +21,81 @@ export class ClinicController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
   @Get("therapists")
   async listTherapists(
     @Req() req: any,
     @Query("q") q?: string,
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clinicId") clinicId?: string,
   ) {
     const limit = Math.min(Math.max(parseInt(limitRaw || "25", 10) || 25, 1), 100);
     return this.clinic.listTherapists(req.user.userId, {
       q: q?.trim() || null,
       limit,
       cursor: cursor || null,
+      clinicId: clinicId?.trim() || null,
+      role: req.user.role,
     });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
   @Post("therapists/invite")
   async inviteTherapist(
     @Req() req: any,
     @Body() dto: InviteTherapistDto,
   ) {
-    return this.clinic.inviteTherapist(req.user.userId, dto, {
+    return this.clinic.inviteTherapist(req.user.userId, dto, req.user.role, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
     });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Get("therapists/invites")
+  async listTherapistInvites(
+    @Req() req: any,
+    @Query("status") status?: InviteStatus | "all",
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.listTherapistInvites(req.user.userId, {
+      clinicId: clinicId?.trim() || null,
+      role: req.user.role,
+      status,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("therapists/invites/:inviteId/resend")
+  async resendTherapistInvite(
+    @Req() req: any,
+    @Param("inviteId") inviteId: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.resendTherapistInvite(
+      req.user.userId,
+      { inviteId, clinicId: clinicId?.trim() || null, role: req.user.role },
+      { ip: req.ip, userAgent: req.headers["user-agent"] },
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("therapists/invites/:inviteId/revoke")
+  async revokeTherapistInvite(
+    @Req() req: any,
+    @Param("inviteId") inviteId: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.revokeTherapistInvite(
+      req.user.userId,
+      { inviteId, clinicId: clinicId?.trim() || null, role: req.user.role },
+      { ip: req.ip, userAgent: req.headers["user-agent"] },
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,20 +122,78 @@ export class ClinicController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
   @Get("clients")
   async listClients(
     @Req() req: any,
     @Query("q") q?: string,
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clinicId") clinicId?: string,
   ) {
     const limit = Math.min(Math.max(parseInt(limitRaw || "25", 10) || 25, 1), 100);
     return this.clinic.listClients(req.user.userId, {
       q: q?.trim() || null,
       limit,
       cursor: cursor || null,
+      clinicId: clinicId?.trim() || null,
+      role: req.user.role,
     });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("clients/invite")
+  async inviteClient(@Req() req: any, @Body() dto: InviteClientDto) {
+    return this.clinic.inviteClient(req.user.userId, dto, req.user.role, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Get("clients/invites")
+  async listClientInvites(
+    @Req() req: any,
+    @Query("status") status?: InviteStatus | "all",
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.listClientInvites(req.user.userId, {
+      clinicId: clinicId?.trim() || null,
+      role: req.user.role,
+      status,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("clients/invites/:inviteId/resend")
+  async resendClientInvite(
+    @Req() req: any,
+    @Param("inviteId") inviteId: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.resendClientInvite(
+      req.user.userId,
+      { inviteId, clinicId: clinicId?.trim() || null, role: req.user.role },
+      { ip: req.ip, userAgent: req.headers["user-agent"] },
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("clients/invites/:inviteId/revoke")
+  async revokeClientInvite(
+    @Req() req: any,
+    @Param("inviteId") inviteId: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.revokeClientInvite(
+      req.user.userId,
+      { inviteId, clinicId: clinicId?.trim() || null, role: req.user.role },
+      { ip: req.ip, userAgent: req.headers["user-agent"] },
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -175,5 +282,20 @@ export class ClinicController {
     @Body() dto: UpdateClinicSettingsDto,
   ) {
     return this.clinic.updateSettings(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("users/:userId/disable")
+  async disableUser(
+    @Req() req: any,
+    @Param("userId") userId: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.clinic.disableUser(
+      req.user.userId,
+      { targetUserId: userId, clinicId: clinicId?.trim() || null, role: req.user.role },
+      { ip: req.ip, userAgent: req.headers["user-agent"] },
+    );
   }
 }

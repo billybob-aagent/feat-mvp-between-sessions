@@ -79,7 +79,11 @@ const buildNav = (role?: string | null) => {
 
   const clinicSettings = {
     section: "Clinic / Settings",
-    items: [{ label: "Clinic Settings", href: "/app/clinic" }],
+    items: [
+      { label: "Staff", href: "/app/settings/clinic/staff" },
+      { label: "Clients", href: "/app/settings/clinic/clients" },
+      { label: "Clinic Settings", href: "/app/clinic" },
+    ],
   };
 
   if (role === "therapist") {
@@ -144,6 +148,7 @@ const PAGE_LABELS: Record<string, string> = {
   "assessment-assist": "Assessment Assist",
   "dry-run": "Dry Run",
   clinic: "Clinic",
+  staff: "Staff",
   admin: "Admin",
 };
 
