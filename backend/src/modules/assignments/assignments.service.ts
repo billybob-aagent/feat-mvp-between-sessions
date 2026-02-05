@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { LibraryItemStatus, Prisma, UserRole } from "@prisma/client";
+import { createHash } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AuditService } from "../audit/audit.service";
@@ -224,6 +225,9 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
 
         // stats
         _count: { select: { responses: true } },
@@ -255,9 +259,9 @@ export class AssignmentsService {
         ? {
             itemId: a.library_item_id,
             versionId: a.library_item_version_id ?? null,
-            version: a.library_item_version ?? null,
-            title: a.library_source_title ?? null,
-            slug: a.library_source_slug ?? null,
+            version: a.library_assigned_version_number ?? a.library_item_version ?? null,
+            title: a.library_assigned_title ?? a.library_source_title ?? null,
+            slug: a.library_assigned_slug ?? a.library_source_slug ?? null,
             contentType: a.library_source_content_type ?? null,
           }
         : null,
@@ -293,6 +297,9 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
         _count: { select: { responses: true } },
       },
     });
@@ -312,9 +319,9 @@ export class AssignmentsService {
         ? {
             itemId: a.library_item_id,
             versionId: a.library_item_version_id ?? null,
-            version: a.library_item_version ?? null,
-            title: a.library_source_title ?? null,
-            slug: a.library_source_slug ?? null,
+            version: a.library_assigned_version_number ?? a.library_item_version ?? null,
+            title: a.library_assigned_title ?? a.library_source_title ?? null,
+            slug: a.library_assigned_slug ?? a.library_source_slug ?? null,
             contentType: a.library_source_content_type ?? null,
           }
         : null,
@@ -373,6 +380,9 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
         client: {
           select: {
             id: true,
@@ -403,9 +413,9 @@ export class AssignmentsService {
         ? {
             itemId: row.library_item_id,
             versionId: row.library_item_version_id ?? null,
-            version: row.library_item_version ?? null,
-            title: row.library_source_title ?? null,
-            slug: row.library_source_slug ?? null,
+            version: row.library_assigned_version_number ?? row.library_item_version ?? null,
+            title: row.library_assigned_title ?? row.library_source_title ?? null,
+            slug: row.library_assigned_slug ?? row.library_source_slug ?? null,
             contentType: row.library_source_content_type ?? null,
           }
         : null,
@@ -443,6 +453,9 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
         therapist_id: true,
         client: {
           select: {
@@ -474,9 +487,9 @@ export class AssignmentsService {
         ? {
             itemId: row.library_item_id,
             versionId: row.library_item_version_id ?? null,
-            version: row.library_item_version ?? null,
-            title: row.library_source_title ?? null,
-            slug: row.library_source_slug ?? null,
+            version: row.library_assigned_version_number ?? row.library_item_version ?? null,
+            title: row.library_assigned_title ?? row.library_source_title ?? null,
+            slug: row.library_assigned_slug ?? row.library_source_slug ?? null,
             contentType: row.library_source_content_type ?? null,
           }
         : null,
@@ -590,6 +603,22 @@ export class AssignmentsService {
     return lines.join("\n").trim() || null;
   }
 
+  // Stable JSON serialization for hashing snapshots (no key-order drift).
+  private stableStringify(value: unknown): string {
+    if (value === null) return "null";
+    const t = typeof value;
+    if (t === "string" || t === "number" || t === "boolean") return JSON.stringify(value);
+    if (t !== "object") return "null"; // undefined, function, symbol -> null
+    if (Array.isArray(value)) {
+      const items = value.map((v) => this.stableStringify(v === undefined ? null : v));
+      return `[${items.join(",")}]`;
+    }
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const pairs = keys.map((k) => `${JSON.stringify(k)}:${this.stableStringify(record[k] === undefined ? null : record[k])}`);
+    return `{${pairs.join(",")}}`;
+  }
+
   async createFromLibrary(
     userId: string,
     role: UserRole,
@@ -656,11 +685,11 @@ export class AssignmentsService {
     const versionRow = dto.libraryItemVersionId
       ? await this.prisma.library_item_versions.findFirst({
           where: { id: dto.libraryItemVersionId, item_id: item.id },
-          select: { id: true, version_number: true, sections_snapshot: true },
+          select: { id: true, version_number: true, metadata_snapshot: true, sections_snapshot: true },
         })
       : await this.prisma.library_item_versions.findFirst({
           where: { item_id: item.id, version_number: item.version },
-          select: { id: true, version_number: true, sections_snapshot: true },
+          select: { id: true, version_number: true, metadata_snapshot: true, sections_snapshot: true },
         });
     if (!versionRow) {
       throw new BadRequestException("Library item version not found");
@@ -681,6 +710,18 @@ export class AssignmentsService {
       clientSections,
     });
 
+    const snapshotChecksum = createHash("sha256")
+      .update(
+        this.stableStringify({
+          item_id: item.id,
+          version_id: versionRow.id,
+          version_number: versionRow.version_number,
+          metadata_snapshot: versionRow.metadata_snapshot,
+          sections_snapshot: versionRow.sections_snapshot,
+        }),
+      )
+      .digest("hex");
+
     // Assignments are published immediately so the client can complete them.
     const created = await this.prisma.assignments.create({
       data: {
@@ -699,6 +740,10 @@ export class AssignmentsService {
         library_source_title: item.title,
         library_source_slug: item.slug,
         library_source_content_type: item.content_type,
+        library_assigned_title: item.title,
+        library_assigned_slug: item.slug,
+        library_assigned_version_number: versionRow.version_number,
+        library_assigned_checksum_sha256: snapshotChecksum,
       },
       select: {
         id: true,
@@ -714,6 +759,10 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
+        library_assigned_checksum_sha256: true,
         therapist_id: true,
         client_id: true,
       },
@@ -745,9 +794,9 @@ export class AssignmentsService {
         ? {
             item_id: created.library_item_id,
             version_id: created.library_item_version_id ?? null,
-            version: created.library_item_version ?? null,
-            title: created.library_source_title ?? null,
-            slug: created.library_source_slug ?? null,
+            version: created.library_assigned_version_number ?? created.library_item_version ?? null,
+            title: created.library_assigned_title ?? created.library_source_title ?? null,
+            slug: created.library_assigned_slug ?? created.library_source_slug ?? null,
             content_type: created.library_source_content_type ?? null,
             status: "PUBLISHED" as const,
           }
@@ -809,6 +858,9 @@ export class AssignmentsService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
         _count: { select: { responses: true } },
       },
     });
@@ -834,9 +886,9 @@ export class AssignmentsService {
           ? {
               itemId: row.library_item_id,
               versionId: row.library_item_version_id ?? null,
-              version: row.library_item_version ?? null,
-              title: row.library_source_title ?? null,
-              slug: row.library_source_slug ?? null,
+              version: row.library_assigned_version_number ?? row.library_item_version ?? null,
+              title: row.library_assigned_title ?? row.library_source_title ?? null,
+              slug: row.library_assigned_slug ?? row.library_source_slug ?? null,
               contentType: row.library_source_content_type ?? null,
             }
           : null,

@@ -245,6 +245,11 @@ model assignments {
   library_source_title String?
   library_source_slug  String?
   library_source_content_type String?
+  // Immutable snapshot captured at assignment creation time (auditable, stable for reporting).
+  library_assigned_title String?
+  library_assigned_slug String?
+  library_assigned_version_number Int?
+  library_assigned_checksum_sha256 String?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 

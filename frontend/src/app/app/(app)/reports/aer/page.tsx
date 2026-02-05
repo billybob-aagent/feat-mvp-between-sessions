@@ -29,8 +29,23 @@ type AerReport = {
   [key: string]: unknown;
 };
 
+type AerLibrarySource = {
+  item_id?: string;
+  version_id?: string | null;
+  version?: number | null;
+  title?: string | null;
+  slug?: string | null;
+  content_type?: string | null;
+} | null;
+
 type AerPrescribedIntervention = {
-  library_source?: { item_id?: string } | null;
+  assignment_id?: string;
+  title?: string | null;
+  library_source?: AerLibrarySource;
+  completed_at?: string | null;
+  reviewed_at?: string | null;
+  reviewed_by?: { user_id?: string | null; name?: string | null } | null;
+  evidence_refs?: string[];
 };
 
 function todayIso() {
@@ -80,6 +95,12 @@ export default function AerReportPage() {
     return (list as AerPrescribedIntervention[]).filter((entry) =>
       Boolean(entry?.library_source?.item_id),
     ).length;
+  }, [report?.prescribed_interventions]);
+
+  const interventions = useMemo(() => {
+    const list = report?.prescribed_interventions;
+    if (!Array.isArray(list)) return [];
+    return list as AerPrescribedIntervention[];
   }, [report?.prescribed_interventions]);
 
   const pdfPath =
@@ -282,6 +303,69 @@ export default function AerReportPage() {
               {pdfInfo.size !== null && (
                 <div>
                   PDF size: <span className="text-app-text">{formatBytes(pdfInfo.size)}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Prescribed interventions</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {interventions.length === 0 ? (
+                <div className="p-6">
+                  <EmptyState
+                    title="No interventions in period"
+                    description="If you expect assignments here, verify clinic/client IDs and the reporting period."
+                  />
+                </div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-app-surface-1 text-xs text-app-muted">
+                      <tr className="border-b border-app-border">
+                        <th className="px-4 py-3 text-left font-medium">Title</th>
+                        <th className="px-4 py-3 text-left font-medium">Source</th>
+                        <th className="px-4 py-3 text-left font-medium">Completed</th>
+                        <th className="px-4 py-3 text-left font-medium">Reviewed</th>
+                        <th className="px-4 py-3 text-right font-medium">Evidence refs</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-app-text">
+                      {interventions.map((row, idx) => (
+                        <tr
+                          key={row.assignment_id ?? `row-${idx}`}
+                          className="border-b border-app-border hover:bg-app-surface-2"
+                        >
+                          <td className="px-4 py-3 align-top">
+                            <div className="font-medium">{row.title ?? row.assignment_id ?? "Assignment"}</div>
+                            {row.assignment_id ? (
+                              <div className="mt-1 text-xs text-app-muted">{row.assignment_id}</div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 align-top text-app-muted">
+                            {row.library_source?.item_id ? (
+                              <div>
+                                <div className="text-app-text">
+                                  {row.library_source.title ?? row.library_source.slug ?? row.library_source.item_id}
+                                  {row.library_source.version ? ` v${row.library_source.version}` : ""}
+                                </div>
+                                <div className="mt-1 text-xs">
+                                  {row.library_source.version_id ? `version_id: ${row.library_source.version_id}` : "version_id: null"}
+                                </div>
+                              </div>
+                            ) : (
+                              <span>-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 align-top text-app-muted">{row.completed_at ?? "-"}</td>
+                          <td className="px-4 py-3 align-top text-app-muted">{row.reviewed_at ?? "-"}</td>
+                          <td className="px-4 py-3 align-top text-right text-app-muted">{row.evidence_refs?.length ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
