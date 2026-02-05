@@ -43,6 +43,10 @@ enum LibraryItemStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
 enum FormSignatureRequestStatus {
@@ -56,6 +60,29 @@ enum FormSignerRole {
   CLIENT
   CLINICIAN
   WITNESS
+}
+
+enum SupervisorEscalationReason {
+  MISSED_INTERVENTIONS
+  LOW_COMPLETION
+  NO_ACTIVITY
+  OTHER
+}
+
+enum SupervisorEscalationStatus {
+  OPEN
+  RESOLVED
+}
+
+enum AiPurpose {
+  DOCUMENTATION
+  ADHERENCE_REVIEW
+  SUPERVISOR_SUMMARY
+}
+
+enum AiRequestStatus {
+  ALLOWED
+  DENIED
 }
 
 model users {
@@ -211,6 +238,11 @@ model assignments {
   published_at  DateTime?
   due_date      DateTime?
   recurrence    String?   // e.g., daily, weekly
+  library_item_id String? @db.Uuid
+  library_item_version Int?
+  library_source_title String?
+  library_source_slug  String?
+  library_source_content_type String?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 
@@ -218,10 +250,12 @@ model assignments {
   client        clients    @relation(fields: [client_id], references: [id])
   prompt        prompts?   @relation(fields: [prompt_id], references: [id])
   responses     responses[]
+  library_item  library_items? @relation(fields: [library_item_id], references: [id], onDelete: SetNull)
 
   @@index([therapist_id, status, created_at])
   @@index([client_id, status, created_at])
   @@index([title])
+  @@index([library_item_id])
 }
 
 model responses {
@@ -305,11 +339,30 @@ model library_items {
   tags            library_item_tags[]
   chunks          library_chunks[]
   signature_requests form_signature_requests[]
+  decisions       library_item_decisions[]
+  assignments     assignments[]
 
   @@index([clinic_id, status])
   @@index([collection_id, status])
   @@index([slug])
   @@unique([clinic_id, slug])
+}
+
+model library_item_decisions {
+  id            String          @id @default(uuid()) @db.Uuid
+  item_id       String          @db.Uuid
+  actor_user_id String?         @db.Uuid
+  actor_role    UserRole
+  action        String
+  from_status   LibraryItemStatus
+  to_status     LibraryItemStatus
+  reason        String?
+  created_at    DateTime        @default(now())
+
+  item          library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([item_id, created_at])
+  @@index([to_status, created_at])
 }
 
 model library_item_versions {
@@ -529,4 +582,88 @@ model metrics_client_weekly {
 
   client              clients @relation(fields: [client_id], references: [id])
   @@unique([client_id, week_start])
+}
+
+model external_access_tokens {
+  id                 String   @id @default(uuid()) @db.Uuid
+  token_hash         String   @unique
+  clinic_id          String   @db.Uuid
+  client_id          String?  @db.Uuid
+  report_type        String
+  period_start       DateTime @db.Date
+  period_end         DateTime @db.Date
+  program            String?
+  expires_at         DateTime
+  revoked_at         DateTime?
+  created_by_user_id String   @db.Uuid
+  created_at         DateTime @default(now())
+
+  uses               external_access_token_uses[]
+
+  @@index([clinic_id])
+  @@index([client_id])
+  @@index([expires_at])
+  @@index([created_by_user_id])
+}
+
+model external_access_token_uses {
+  id          String   @id @default(uuid()) @db.Uuid
+  token_id    String   @db.Uuid
+  used_at     DateTime @default(now())
+  ip          String?
+  user_agent  String?
+  path        String
+  status_code Int
+
+  token       external_access_tokens @relation(fields: [token_id], references: [id])
+
+  @@index([token_id])
+}
+
+model supervisor_escalations {
+  id                     String                     @id @default(uuid()) @db.Uuid
+  clinic_id              String                     @db.Uuid
+  client_id              String                     @db.Uuid
+  period_start           DateTime                   @db.Date
+  period_end             DateTime                   @db.Date
+  reason                 SupervisorEscalationReason
+  note                   String?
+  created_by_user_id     String                     @db.Uuid
+  assign_to_therapist_id String?                    @db.Uuid
+  status                 SupervisorEscalationStatus @default(OPEN)
+  created_at             DateTime                   @default(now())
+  resolved_at            DateTime?
+
+  @@index([clinic_id])
+  @@index([client_id])
+  @@index([created_by_user_id])
+  @@index([assign_to_therapist_id])
+}
+
+model ai_clinic_settings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  clinic_id            String   @unique @db.Uuid
+  enabled              Boolean  @default(false)
+  allow_client_facing  Boolean  @default(false)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  @@index([clinic_id])
+}
+
+model ai_request_logs {
+  id              String          @id @default(uuid()) @db.Uuid
+  clinic_id       String          @db.Uuid
+  user_id         String          @db.Uuid
+  role            String
+  purpose         AiPurpose
+  status          AiRequestStatus
+  denial_reason   String?
+  input_hash      String
+  sanitized_hash  String
+  redaction_stats Json
+  created_at      DateTime        @default(now())
+
+  @@index([clinic_id])
+  @@index([user_id])
 }
