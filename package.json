@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "lint": "node --check server.js"
+    "lint": "node --check server.js",
+    "e2e": "playwright test",
+    "ingest:clinical-library": "npm --prefix backend run ingest:clinical-library",
+    "gtm:pdf": "python3 scripts/build_gtm_pdf.py"
   },
   "keywords": [
     "mental-wellness",
