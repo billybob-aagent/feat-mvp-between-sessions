@@ -59,9 +59,26 @@ type AerReport = {
     period: { start: string; end: string };
     report_id: string;
   };
-  prescribed_interventions?: unknown[];
+  prescribed_interventions?: AerPrescribedIntervention[];
   adherence_timeline?: unknown[];
   not_available?: string[];
+};
+
+type AerLibrarySource = {
+  item_id?: string;
+  version_id?: string | null;
+  version?: number | null;
+  title?: string | null;
+  slug?: string | null;
+} | null;
+
+type AerPrescribedIntervention = {
+  assignment_id?: string;
+  title?: string | null;
+  library_source?: AerLibrarySource;
+  completed_at?: string | null;
+  reviewed_at?: string | null;
+  evidence_refs?: string[];
 };
 
 type EscalationRow = {
@@ -921,23 +938,95 @@ export default function ClientProfilePage() {
               ) : null}
 
               {aerReport && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>AER JSON summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-app-muted space-y-2">
-                    <div>Report ID: {aerReport.meta.report_id}</div>
-                    <div>
-                      Period: {aerReport.meta.period.start} → {aerReport.meta.period.end}
-                    </div>
-                    <div>
-                      Prescribed interventions: {aerReport.prescribed_interventions?.length ?? 0}
-                    </div>
-                    <div>
-                      Adherence events: {aerReport.adherence_timeline?.length ?? 0}
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>AER JSON summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-app-muted space-y-2">
+                      <div>Report ID: {aerReport.meta.report_id}</div>
+                      <div>
+                        Period: {aerReport.meta.period.start} → {aerReport.meta.period.end}
+                      </div>
+                      <div>
+                        Prescribed interventions: {aerReport.prescribed_interventions?.length ?? 0}
+                      </div>
+                      <div>
+                        Adherence events: {aerReport.adherence_timeline?.length ?? 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Prescribed interventions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {!aerReport.prescribed_interventions?.length ? (
+                        <div className="p-6">
+                          <EmptyState
+                            title="No interventions in period"
+                            description="If you expect assignments here, verify the reporting period and that assignments exist for this client."
+                          />
+                        </div>
+                      ) : (
+                        <div className="overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-app-surface-1 text-xs text-app-muted">
+                              <tr className="border-b border-app-border">
+                                <th className="px-4 py-3 text-left font-medium">Title</th>
+                                <th className="px-4 py-3 text-left font-medium">Source</th>
+                                <th className="px-4 py-3 text-left font-medium">Completed</th>
+                                <th className="px-4 py-3 text-left font-medium">Reviewed</th>
+                              </tr>
+                            </thead>
+                            <tbody className="text-app-text">
+                              {aerReport.prescribed_interventions.map((row, idx) => (
+                                <tr
+                                  key={row.assignment_id ?? `row-${idx}`}
+                                  className="border-b border-app-border hover:bg-app-surface-2"
+                                >
+                                  <td className="px-4 py-3 align-top">
+                                    <div className="font-medium">
+                                      {row.title ?? row.assignment_id ?? "Assignment"}
+                                    </div>
+                                    {row.assignment_id ? (
+                                      <div className="mt-1 text-xs text-app-muted">
+                                        {row.assignment_id}
+                                      </div>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-4 py-3 align-top text-app-muted">
+                                    {row.library_source?.item_id ? (
+                                      <div>
+                                        <div className="text-app-text">
+                                          {row.library_source.title ??
+                                            row.library_source.slug ??
+                                            row.library_source.item_id}
+                                          {row.library_source.version
+                                            ? ` v${row.library_source.version}`
+                                            : ""}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span>-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 align-top text-app-muted">
+                                    {row.completed_at ?? "-"}
+                                  </td>
+                                  <td className="px-4 py-3 align-top text-app-muted">
+                                    {row.reviewed_at ?? "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </div>
           )}

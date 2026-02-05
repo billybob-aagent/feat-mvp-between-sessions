@@ -87,6 +87,9 @@ type AssignmentRow = {
   library_source_title: string | null;
   library_source_slug: string | null;
   library_source_content_type: string | null;
+  library_assigned_title: string | null;
+  library_assigned_slug: string | null;
+  library_assigned_version_number: number | null;
   therapist: { user_id: string; full_name: string } | null;
   prompt: { title: string } | null;
 };
@@ -203,6 +206,9 @@ export class AerReportService {
         library_source_title: true,
         library_source_slug: true,
         library_source_content_type: true,
+        library_assigned_title: true,
+        library_assigned_slug: true,
+        library_assigned_version_number: true,
         therapist: { select: { user_id: true, full_name: true } },
         prompt: { select: { title: true } },
       },
@@ -325,9 +331,12 @@ export class AerReportService {
           ? {
               item_id: assignment.library_item_id,
               version_id: assignment.library_item_version_id ?? null,
-              version: assignment.library_item_version ?? null,
-              title: assignment.library_source_title ?? null,
-              slug: assignment.library_source_slug ?? null,
+              version:
+                assignment.library_assigned_version_number ??
+                assignment.library_item_version ??
+                null,
+              title: assignment.library_assigned_title ?? assignment.library_source_title ?? null,
+              slug: assignment.library_assigned_slug ?? assignment.library_source_slug ?? null,
               content_type: assignment.library_source_content_type ?? null,
               status: "PUBLISHED" as const,
             }

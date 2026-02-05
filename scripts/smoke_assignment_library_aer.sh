@@ -165,22 +165,70 @@ echo "${AER_JSON}" | node -e '
     console.error("FAIL: No library_source found in prescribed_interventions.");
     process.exit(2);
   }
-  console.log("OK: library_source present. Example:", {
-    assignment_id: linked[0].assignment_id,
-    library_source: linked[0].library_source,
-    completed_at: linked[0].completed_at ?? null,
-    reviewed_at: linked[0].reviewed_at ?? null,
+  const first = linked[0];
+  const src = first.library_source || {};
+  const missing = [];
+  if (!src.version_id) missing.push("library_source.version_id");
+  if (src.version === null || src.version === undefined) missing.push("library_source.version");
+  if (!src.title && !src.slug) missing.push("library_source.title_or_slug");
+  if (missing.length) {
+    console.error("FAIL: Missing required library_source fields:", missing);
+    process.exit(3);
+  }
+  console.log("OK: library_source present with snapshot fields. Example:", {
+    assignment_id: first.assignment_id,
+    library_source: {
+      item_id: src.item_id,
+      version_id: src.version_id,
+      version: src.version,
+      title: src.title ?? null,
+      slug: src.slug ?? null,
+    },
+    completed_at: first.completed_at ?? null,
+    reviewed_at: first.reviewed_at ?? null,
   });
 '
 
-echo "== Step 7: fetch AER PDF and confirm 200"
-curl -s -D /tmp/bs-aer-pdf.headers \
+sha256_file() {
+  local file="$1"
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "${file}" | awk "{print \\$1}"
+    return 0
+  fi
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "${file}" | awk "{print \\$1}"
+    return 0
+  fi
+  echo "sha256 tool not found (need shasum or sha256sum)" >&2
+  return 1
+}
+
+echo "== Step 7: fetch AER PDF twice and confirm deterministic sha256"
+curl -s -D /tmp/bs-aer-pdf-1.headers \
   -b "${COOKIE_ADMIN}" \
   "${API_BASE}/reports/aer/${CLINIC_ID}/${CLIENT_ID}.pdf?start=${START}&end=${END}" \
-  -o /tmp/bs-aer.pdf
+  -o /tmp/bs-aer-1.pdf
 
-head -n 1 /tmp/bs-aer-pdf.headers || true
-grep -iE "^content-type:|^content-length:" /tmp/bs-aer-pdf.headers || true
-ls -lh /tmp/bs-aer.pdf || true
+curl -s -D /tmp/bs-aer-pdf-2.headers \
+  -b "${COOKIE_ADMIN}" \
+  "${API_BASE}/reports/aer/${CLINIC_ID}/${CLIENT_ID}.pdf?start=${START}&end=${END}" \
+  -o /tmp/bs-aer-2.pdf
+
+PDF_STATUS_1="$(head -n 1 /tmp/bs-aer-pdf-1.headers || true)"
+PDF_STATUS_2="$(head -n 1 /tmp/bs-aer-pdf-2.headers || true)"
+echo "${PDF_STATUS_1}"
+echo "${PDF_STATUS_2}"
+grep -iE "^content-type:|^content-length:" /tmp/bs-aer-pdf-1.headers || true
+ls -lh /tmp/bs-aer-1.pdf /tmp/bs-aer-2.pdf || true
+
+H1="$(sha256_file /tmp/bs-aer-1.pdf)"
+H2="$(sha256_file /tmp/bs-aer-2.pdf)"
+echo "sha256 #1: ${H1}"
+echo "sha256 #2: ${H2}"
+if [[ "${H1}" != "${H2}" ]]; then
+  echo "FAIL: PDF sha256 differs across identical requests."
+  exit 4
+fi
+echo "OK: PDF sha256 matches across identical requests."
 
 echo "DONE"
