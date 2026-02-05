@@ -239,6 +239,8 @@ model assignments {
   due_date      DateTime?
   recurrence    String?   // e.g., daily, weekly
   library_item_id String? @db.Uuid
+  // Optional: stable linkage to a specific library version row for audit/reporting.
+  library_item_version_id String? @db.Uuid
   library_item_version Int?
   library_source_title String?
   library_source_slug  String?
@@ -251,11 +253,13 @@ model assignments {
   prompt        prompts?   @relation(fields: [prompt_id], references: [id])
   responses     responses[]
   library_item  library_items? @relation(fields: [library_item_id], references: [id], onDelete: SetNull)
+  library_item_version_row library_item_versions? @relation("AssignmentLibraryVersion", fields: [library_item_version_id], references: [id], onDelete: SetNull)
 
   @@index([therapist_id, status, created_at])
   @@index([client_id, status, created_at])
   @@index([title])
   @@index([library_item_id])
+  @@index([library_item_version_id])
 }
 
 model responses {
@@ -376,6 +380,7 @@ model library_item_versions {
   created_at        DateTime @default(now())
 
   item              library_items @relation(fields: [item_id], references: [id], onDelete: Cascade)
+  assignments       assignments[] @relation("AssignmentLibraryVersion")
 
   @@unique([item_id, version_number])
   @@index([item_id])

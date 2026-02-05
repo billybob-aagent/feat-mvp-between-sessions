@@ -12,6 +12,10 @@ export class CreateAssignmentFromLibraryDto {
   libraryItemId!: string;
 
   @IsOptional()
+  @IsUUID()
+  libraryItemVersionId?: string | null;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string | null;
 

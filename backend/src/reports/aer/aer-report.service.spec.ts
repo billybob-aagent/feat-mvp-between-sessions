@@ -34,6 +34,7 @@ describe("AerReportService", () => {
         published_at: new Date("2026-01-02T10:00:00.000Z"),
         due_date: new Date("2026-01-10T00:00:00.000Z"),
         library_item_id: "lib-1",
+        library_item_version_id: "ver-1",
         library_item_version: 3,
         library_source_title: "Library Item",
         library_source_slug: "library-item",
@@ -48,6 +49,7 @@ describe("AerReportService", () => {
         published_at: new Date("2026-01-03T10:00:00.000Z"),
         due_date: new Date("2026-01-20T00:00:00.000Z"),
         library_item_id: null,
+        library_item_version_id: null,
         library_item_version: null,
         library_source_title: null,
         library_source_slug: null,
@@ -87,7 +89,7 @@ describe("AerReportService", () => {
       },
     ]);
     prismaMock.checkins.findMany.mockResolvedValue([
-      { created_at: new Date("2026-01-05T08:00:00.000Z"), mood: 6 },
+      { id: "chk-1", created_at: new Date("2026-01-05T08:00:00.000Z"), mood: 6 },
     ]);
     prismaMock.notifications.findMany.mockResolvedValue([
       {
@@ -133,7 +135,8 @@ describe("AerReportService", () => {
     expect(assignmentOne?.status_summary.late).toBe(0);
     expect(assignmentOne?.completed_at).toBe("2026-01-09T09:00:00.000Z");
     expect(assignmentOne?.library_source?.item_id).toBe("lib-1");
-    expect(assignmentOne?.library_source?.version_id).toBe("3");
+    expect(assignmentOne?.library_source?.version_id).toBe("ver-1");
+    expect(assignmentOne?.library_source?.version).toBe(3);
     expect(assignmentOne?.evidence_refs).toEqual(["r1"]);
     expect(assignmentTwo?.status_summary.completed).toBe(1);
     expect(assignmentTwo?.status_summary.late).toBe(1);

@@ -24,6 +24,7 @@ export type TherapistAssignmentListItemDto = {
   };
   librarySource: {
     itemId: string;
+    versionId: string | null;
     version: number | null;
     title: string | null;
     slug: string | null;
@@ -46,6 +47,7 @@ export type TherapistAssignmentDetailDto = {
   };
   librarySource: {
     itemId: string;
+    versionId: string | null;
     version: number | null;
     title: string | null;
     slug: string | null;
@@ -64,6 +66,7 @@ export type ClientAssignmentListItemDto = {
   lastReviewedAt: string | null;
   librarySource: {
     itemId: string;
+    versionId: string | null;
     version: number | null;
     title: string | null;
     slug: string | null;
@@ -80,6 +83,7 @@ export type ClientAssignmentDetailDto = {
   responseCount: number;
   librarySource: {
     itemId: string;
+    versionId: string | null;
     version: number | null;
     title: string | null;
     slug: string | null;
@@ -99,6 +103,7 @@ export type AssignmentListRowDto = {
   therapistId: string;
   librarySource: {
     itemId: string;
+    versionId: string | null;
     version: number | null;
     title: string | null;
     slug: string | null;
@@ -214,6 +219,7 @@ export class AssignmentsService {
         description: true,
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -248,6 +254,7 @@ export class AssignmentsService {
       librarySource: a.library_item_id
         ? {
             itemId: a.library_item_id,
+            versionId: a.library_item_version_id ?? null,
             version: a.library_item_version ?? null,
             title: a.library_source_title ?? null,
             slug: a.library_source_slug ?? null,
@@ -281,6 +288,7 @@ export class AssignmentsService {
         description: true,
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -303,6 +311,7 @@ export class AssignmentsService {
       librarySource: a.library_item_id
         ? {
             itemId: a.library_item_id,
+            versionId: a.library_item_version_id ?? null,
             version: a.library_item_version ?? null,
             title: a.library_source_title ?? null,
             slug: a.library_source_slug ?? null,
@@ -359,6 +368,7 @@ export class AssignmentsService {
         description: true,
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -392,6 +402,7 @@ export class AssignmentsService {
       librarySource: row.library_item_id
         ? {
             itemId: row.library_item_id,
+            versionId: row.library_item_version_id ?? null,
             version: row.library_item_version ?? null,
             title: row.library_source_title ?? null,
             slug: row.library_source_slug ?? null,
@@ -427,6 +438,7 @@ export class AssignmentsService {
         description: true,
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -461,6 +473,7 @@ export class AssignmentsService {
       librarySource: row.library_item_id
         ? {
             itemId: row.library_item_id,
+            versionId: row.library_item_version_id ?? null,
             version: row.library_item_version ?? null,
             title: row.library_source_title ?? null,
             slug: row.library_source_slug ?? null,
@@ -584,6 +597,7 @@ export class AssignmentsService {
       clinicId?: string | null;
       clientId: string;
       libraryItemId: string;
+      libraryItemVersionId?: string | null;
       dueDate?: string | null;
       note?: string | null;
       program?: string | null;
@@ -635,11 +649,24 @@ export class AssignmentsService {
     // Library item must be published and belong to clinic.
     const item = await this.prisma.library_items.findFirst({
       where: { id: dto.libraryItemId, clinic_id: clinicId, status: LibraryItemStatus.PUBLISHED },
-      select: { id: true, title: true, slug: true, content_type: true, status: true, version: true, sections: true },
+      select: { id: true, title: true, slug: true, content_type: true, status: true, version: true },
     });
     if (!item) throw new NotFoundException("Library item not found (or not published)");
 
-    const clientSections = this.extractClientSections(item.sections);
+    const versionRow = dto.libraryItemVersionId
+      ? await this.prisma.library_item_versions.findFirst({
+          where: { id: dto.libraryItemVersionId, item_id: item.id },
+          select: { id: true, version_number: true, sections_snapshot: true },
+        })
+      : await this.prisma.library_item_versions.findFirst({
+          where: { item_id: item.id, version_number: item.version },
+          select: { id: true, version_number: true, sections_snapshot: true },
+        });
+    if (!versionRow) {
+      throw new BadRequestException("Library item version not found");
+    }
+
+    const clientSections = this.extractClientSections(versionRow.sections_snapshot);
     if (clientSections.length === 0) {
       throw new BadRequestException("Library item has no client-safe sections");
     }
@@ -667,7 +694,8 @@ export class AssignmentsService {
         due_date: dto.dueDate ? new Date(dto.dueDate) : null,
         recurrence: null,
         library_item_id: item.id,
-        library_item_version: item.version,
+        library_item_version_id: versionRow.id,
+        library_item_version: versionRow.version_number,
         library_source_title: item.title,
         library_source_slug: item.slug,
         library_source_content_type: item.content_type,
@@ -681,6 +709,7 @@ export class AssignmentsService {
         title: true,
         description: true,
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -699,7 +728,8 @@ export class AssignmentsService {
         clinicId,
         clientId: client.id,
         libraryItemId: item.id,
-        libraryItemVersion: item.version,
+        libraryItemVersionId: versionRow.id,
+        libraryItemVersion: versionRow.version_number,
         dueDate: dto.dueDate ?? null,
         program: dto.program ?? null,
       },
@@ -709,6 +739,19 @@ export class AssignmentsService {
       id: created.id,
       status: created.status,
       publishedAt: created.published_at ? created.published_at.toISOString() : null,
+      dueDate: created.due_date ? created.due_date.toISOString().slice(0, 10) : null,
+      title: created.title ?? null,
+      library_source: created.library_item_id
+        ? {
+            item_id: created.library_item_id,
+            version_id: created.library_item_version_id ?? null,
+            version: created.library_item_version ?? null,
+            title: created.library_source_title ?? null,
+            slug: created.library_source_slug ?? null,
+            content_type: created.library_source_content_type ?? null,
+            status: "PUBLISHED" as const,
+          }
+        : null,
     };
   }
 
@@ -761,6 +804,7 @@ export class AssignmentsService {
         therapist_id: true,
         client_id: true,
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -789,6 +833,7 @@ export class AssignmentsService {
         librarySource: row.library_item_id
           ? {
               itemId: row.library_item_id,
+              versionId: row.library_item_version_id ?? null,
               version: row.library_item_version ?? null,
               title: row.library_source_title ?? null,
               slug: row.library_source_slug ?? null,
@@ -863,6 +908,7 @@ export class AssignmentsService {
         },
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -900,6 +946,7 @@ export class AssignmentsService {
       librarySource: updated.library_item_id
         ? {
             itemId: updated.library_item_id,
+            versionId: updated.library_item_version_id ?? null,
             version: updated.library_item_version ?? null,
             title: updated.library_source_title ?? null,
             slug: updated.library_source_slug ?? null,
@@ -946,6 +993,7 @@ export class AssignmentsService {
         description: true,
         prompt: { select: { title: true, content: true } },
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -1013,6 +1061,7 @@ export class AssignmentsService {
       librarySource: updated.library_item_id
         ? {
             itemId: updated.library_item_id,
+            versionId: updated.library_item_version_id ?? null,
             version: updated.library_item_version ?? null,
             title: updated.library_source_title ?? null,
             slug: updated.library_source_slug ?? null,

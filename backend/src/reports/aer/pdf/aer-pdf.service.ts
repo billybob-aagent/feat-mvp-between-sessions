@@ -240,9 +240,12 @@ export class AerPdfService {
             entry.library_source.title ??
             entry.library_source.slug ??
             entry.library_source.item_id;
-          const versionLabel = entry.library_source.version_id
-            ? ` v${entry.library_source.version_id}`
-            : "";
+          const versionLabel =
+            entry.library_source.version !== null && entry.library_source.version !== undefined
+              ? ` v${entry.library_source.version}`
+              : entry.library_source.version_id
+                ? ` v${entry.library_source.version_id}`
+                : "";
           lines.push(`Source: ${toDisplay(srcName)}${versionLabel}`);
         }
         if (entry.reviewed_at) {

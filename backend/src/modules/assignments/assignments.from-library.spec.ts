@@ -7,6 +7,7 @@ const prismaMock = {
   therapists: { findFirst: jest.fn() },
   clients: { findUnique: jest.fn() },
   library_items: { findFirst: jest.fn() },
+  library_item_versions: { findFirst: jest.fn() },
   assignments: { create: jest.fn(), findMany: jest.fn() },
 };
 
@@ -70,7 +71,11 @@ describe("AssignmentsService createFromLibrary", () => {
       content_type: "Therapeutic",
       status: "PUBLISHED",
       version: 3,
-      sections: [{ title: "Clin", text: "secret", audience: "Clinician" }],
+    });
+    prismaMock.library_item_versions.findFirst.mockResolvedValue({
+      id: "v-1",
+      version_number: 3,
+      sections_snapshot: [{ title: "Clin", text: "secret", audience: "Clinician" }],
     });
 
     await expect(
@@ -96,13 +101,29 @@ describe("AssignmentsService createFromLibrary", () => {
       content_type: "Therapeutic",
       status: "PUBLISHED",
       version: 7,
-      sections: [{ title: "Client", text: "hello", audience: "Client" }],
+    });
+    prismaMock.library_item_versions.findFirst.mockResolvedValue({
+      id: "v-7",
+      version_number: 7,
+      sections_snapshot: [{ title: "Client", text: "hello", audience: "Client" }],
     });
 
     prismaMock.assignments.create.mockResolvedValue({
       id: "a-1",
       status: "published",
       published_at: new Date("2026-02-04T00:00:00.000Z"),
+      due_date: null,
+      created_at: new Date("2026-02-04T00:00:00.000Z"),
+      title: "Library Title",
+      description: null,
+      library_item_id: "lib-1",
+      library_item_version_id: "v-7",
+      library_item_version: 7,
+      library_source_title: "Library Title",
+      library_source_slug: "lib-title",
+      library_source_content_type: "Therapeutic",
+      therapist_id: "t-1",
+      client_id: "c-1",
     });
 
     await service.createFromLibrary("u-1", UserRole.therapist, {
@@ -130,4 +151,3 @@ describe("AssignmentsService createFromLibrary", () => {
     expect(call2.data.title).toBe("Override Title");
   });
 });
-

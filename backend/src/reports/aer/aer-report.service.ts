@@ -24,6 +24,7 @@ type AerReport = {
     library_source: {
       item_id: string;
       version_id: string | null;
+      version: number | null;
       title: string | null;
       slug: string | null;
       content_type: string | null;
@@ -81,6 +82,7 @@ type AssignmentRow = {
   published_at: Date | null;
   due_date: Date | null;
   library_item_id: string | null;
+  library_item_version_id: string | null;
   library_item_version: number | null;
   library_source_title: string | null;
   library_source_slug: string | null;
@@ -107,7 +109,7 @@ type FeedbackRow = {
   response: { assignment_id: string };
 };
 
-type CheckinRow = { created_at: Date; mood: number };
+type CheckinRow = { id: string; created_at: Date; mood: number };
 
 type NotificationRow = { type: string; dedupe_key: string | null; created_at: Date };
 
@@ -196,6 +198,7 @@ export class AerReportService {
         published_at: true,
         due_date: true,
         library_item_id: true,
+        library_item_version_id: true,
         library_item_version: true,
         library_source_title: true,
         library_source_slug: true,
@@ -241,7 +244,7 @@ export class AerReportService {
 
     const checkins = (await this.prisma.checkins.findMany({
       where: { client_id: clientId, created_at: periodFilter },
-      select: { created_at: true, mood: true },
+      select: { id: true, created_at: true, mood: true },
     })) as CheckinRow[];
 
     const notifications = (await this.prisma.notifications.findMany({
@@ -321,9 +324,8 @@ export class AerReportService {
         library_source: assignment.library_item_id
           ? {
               item_id: assignment.library_item_id,
-              version_id: assignment.library_item_version
-                ? String(assignment.library_item_version)
-                : null,
+              version_id: assignment.library_item_version_id ?? null,
+              version: assignment.library_item_version ?? null,
               title: assignment.library_source_title ?? null,
               slug: assignment.library_source_slug ?? null,
               content_type: assignment.library_source_content_type ?? null,
@@ -385,7 +387,7 @@ export class AerReportService {
         type: "checkin",
         source: "client",
         ref: { assignment_id: null, response_id: null },
-        details: { mood: checkin.mood },
+        details: { checkin_id: checkin.id, mood: checkin.mood },
       });
     }
 
