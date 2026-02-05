@@ -1,9 +1,10 @@
-import { Controller, Get, GoneException, Req, UseGuards } from '@nestjs/common';
-import { ClientsService } from './clients.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { Body, Controller, Get, GoneException, Post, Req, UseGuards } from "@nestjs/common";
+import { ClientsService } from "./clients.service";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RolesGuard } from "../auth/roles.guard";
+import { Roles } from "../auth/roles.decorator";
+import { UserRole } from "@prisma/client";
+import { CreateClientDto } from "./dto/create-client.dto";
 
 @Controller('clients')
 export class ClientsController {
@@ -18,6 +19,13 @@ export class ClientsController {
   @Get('mine')
   async mine(@Req() req: any) {
     return this.clients.listForTherapist(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.therapist)
+  @Post("create")
+  async create(@Req() req: any, @Body() dto: CreateClientDto) {
+    return this.clients.createForTherapist(req.user.userId, dto);
   }
 
   /**

@@ -1,19 +1,26 @@
-import type { Metadata } from "next";
+// frontend/src/app/layout.tsx
+
 import "./globals.css";
+
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Between Sessions",
-  description: "MVP",
+  description: "Therapist and client between-session check-ins",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <head />
+      <body>{children}</body>
     </html>
   );
 }

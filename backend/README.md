@@ -32,6 +32,19 @@
 $ npm install
 ```
 
+## SES email setup (transactional)
+
+Set these env vars in `backend/.env` (or your deploy environment):
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- `SES_FROM_EMAIL` (must be a verified identity in SES)
+- `APP_BASE_URL` (used for links in emails)
+
+Note: SES is currently disabled in code until the AWS SDK dependency is installed.
+
+If your SES account is still in sandbox mode, both the sender and recipient
+addresses must be verified. Move the account out of sandbox to send to
+unverified recipients.
+
 ## Compile and run the project
 
 ```bash

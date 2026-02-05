@@ -2,41 +2,100 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white text-gray-900">
-      <header className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
-        <div className="text-2xl font-bold">Between Sessions™</div>
-        <nav className="flex gap-6 text-sm">
-          <Link href="/pricing" className="hover:underline">Pricing</Link>
-          <Link href="/auth/login" className="hover:underline">Login</Link>
-          <Link href="/auth/signup" className="px-4 py-2 bg-black text-white rounded-md">Get Started</Link>
+    <main className="min-h-screen bg-app-bg text-app-text">
+      <header className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="text-h3">Between Sessions</div>
+        <nav className="flex flex-wrap items-center gap-4 text-sm">
+          <Link href="/pricing" className="text-app-muted hover:text-app-text">
+            Pricing
+          </Link>
+          <Link href="/auth/login" className="text-app-muted hover:text-app-text">
+            Login
+          </Link>
+          <Link
+            href="/auth/login?next=/app/clinic/dashboard"
+            className="text-app-muted hover:text-app-text"
+          >
+            Clinic Login
+          </Link>
+          <Link
+            href="/auth/signup?role=clinic"
+            className="text-app-muted hover:text-app-text"
+          >
+            Clinic Signup
+          </Link>
+          <Link
+            href="/auth/signup"
+            className="inline-flex items-center justify-center rounded-md border border-app-border bg-app-accent px-4 py-2 text-xs text-white shadow-soft hover:bg-app-accent/90"
+          >
+            Get Started
+          </Link>
         </nav>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
+      <section className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-10 items-center">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">The paid asynchronous care platform for therapists and clients</h1>
-          <p className="mt-6 text-lg text-gray-700">Assign between-session exercises, receive client reflections, and send short feedback — all with privacy-first architecture.</p>
-          <div className="mt-8 flex gap-4">
-            <Link href="/auth/signup" className="px-6 py-3 bg-black text-white rounded-md">Start 14-day free trial</Link>
-            <Link href="/pricing" className="px-6 py-3 border rounded-md">See pricing</Link>
+          <p className="text-label text-app-muted">Clinical support platform</p>
+          <h1 className="text-h1 mt-2">
+            A calm, private space for between-session care
+          </h1>
+          <p className="mt-4 text-body text-app-muted">
+            Assign structured exercises, gather reflections, and keep care moving
+            between sessions with privacy-first workflows.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center justify-center rounded-md border border-app-border bg-app-accent px-5 py-2 text-sm text-white shadow-soft hover:bg-app-accent/90"
+            >
+              Start 14-day free trial
+            </Link>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center justify-center rounded-md border border-app-border bg-app-surface px-5 py-2 text-sm text-app-text shadow-soft hover:bg-app-surface-2"
+            >
+              See pricing
+            </Link>
           </div>
-          <p className="mt-4 text-xs text-gray-500">No medical advice. Not a replacement for therapy. Clinical support tool only.</p>
+          <div className="mt-4 flex flex-wrap gap-4 text-xs">
+            <Link
+              href="/auth/login?next=/app/clinic/dashboard"
+              className="text-app-muted hover:text-app-text"
+            >
+              Clinic Admin Login
+            </Link>
+            <Link
+              href="/auth/signup?role=clinic"
+              className="text-app-muted hover:text-app-text"
+            >
+              Clinic Admin Signup
+            </Link>
+          </div>
+          <p className="mt-4 text-xs text-app-muted">
+            Not a medical device. Not a replacement for therapy.
+          </p>
         </div>
-        <div className="border rounded-lg p-6 shadow-sm">
-          <ul className="space-y-3 text-sm">
-            <li>• Assign prompts with due dates and recurrence</li>
-            <li>• Collect text and voice reflections</li>
-            <li>• Daily mood check-ins</li>
-            <li>• Therapist feedback loop</li>
-            <li>• Engagement and mood trends</li>
+
+        <div className="rounded-lg border border-app-border bg-app-surface p-6 shadow-soft">
+          <div className="text-h3">Why teams choose Between Sessions</div>
+          <ul className="mt-4 space-y-3 text-sm text-app-muted">
+            <li>Assign prompts with due dates and recurrence</li>
+            <li>Collect text and voice reflections securely</li>
+            <li>Capture daily mood check-ins and trends</li>
+            <li>Deliver concise therapist feedback loops</li>
+            <li>Stay aligned with client engagement signals</li>
           </ul>
         </div>
       </section>
 
-      <footer className="border-t py-10 text-center text-sm text-gray-600">
+      <footer className="border-t border-app-border py-8 text-center text-xs text-app-muted">
         <div className="space-x-6">
-          <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/terms">Terms</Link>
+          <Link href="/privacy" className="hover:text-app-text">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-app-text">
+            Terms
+          </Link>
         </div>
         <p className="mt-4">© {new Date().getFullYear()} Therapy Is Us</p>
       </footer>
