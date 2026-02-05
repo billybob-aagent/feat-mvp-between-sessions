@@ -33,6 +33,23 @@ type ResolvedClinic = {
 export class LibraryService {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
 
+  private extractSections(raw: unknown): Array<Record<string, unknown>> {
+    if (Array.isArray(raw)) return raw as Array<Record<string, unknown>>;
+    if (raw && typeof raw === "object") {
+      const obj = raw as { sections?: unknown };
+      if (Array.isArray(obj.sections)) return obj.sections as Array<Record<string, unknown>>;
+    }
+    return [];
+  }
+
+  // Guardrail: client-facing rendering must only include explicitly tagged client sections.
+  private filterClientSections(raw: unknown): Array<Record<string, unknown>> {
+    const sections = this.extractSections(raw);
+    return sections.filter(
+      (s) => String((s as any)?.audience ?? "").trim().toLowerCase() === "client",
+    );
+  }
+
   private async resolveClinicContext(
     userId: string,
     role: UserRole,
@@ -113,9 +130,8 @@ export class LibraryService {
       .text(`Requested: ${params.requestedAt.toISOString()}`);
 
     doc.moveDown();
-    const sections = Array.isArray(params.item.sections)
-      ? params.item.sections
-      : params.item.sections?.sections ?? [];
+    // Client-facing: only include client audience sections.
+    const sections = this.filterClientSections(params.item.sections);
     for (const section of sections) {
       const title =
         section?.title || section?.sectionType || section?.headingPath || "Section";
@@ -203,11 +219,19 @@ export class LibraryService {
         ? LibraryItemStatus.PUBLISHED
         : filters.status === "draft"
           ? LibraryItemStatus.DRAFT
-          : filters.status === "archived"
-            ? LibraryItemStatus.ARCHIVED
-            : filters.status === "published"
-              ? LibraryItemStatus.PUBLISHED
-              : undefined;
+          : filters.status === "submitted"
+            ? LibraryItemStatus.SUBMITTED
+            : filters.status === "under_review"
+              ? LibraryItemStatus.UNDER_REVIEW
+              : filters.status === "approved"
+                ? LibraryItemStatus.APPROVED
+                : filters.status === "rejected"
+                  ? LibraryItemStatus.REJECTED
+                  : filters.status === "archived"
+                    ? LibraryItemStatus.ARCHIVED
+                    : filters.status === "published"
+                      ? LibraryItemStatus.PUBLISHED
+                      : undefined;
 
     const items = await this.prisma.library_items.findMany({
       where: {
@@ -275,12 +299,17 @@ export class LibraryService {
     const { clinicId } = await this.resolveClinicContext(userId, role, clinicIdOverride);
     const item = await this.prisma.library_items.findFirst({
       where: { id, clinic_id: clinicId },
-      include: { versions: { orderBy: { version_number: "desc" }, take: 10 } },
+      include: {
+        versions: { orderBy: { version_number: "desc" }, take: 10 },
+        decisions: { orderBy: [{ created_at: "asc" }, { id: "asc" }], take: 100 },
+      },
     });
     if (!item) throw new NotFoundException("Library item not found");
     if (role === UserRole.client && item.status !== LibraryItemStatus.PUBLISHED) {
       throw new ForbiddenException("Item not published");
     }
+    const sections =
+      role === UserRole.client ? this.filterClientSections(item.sections) : item.sections;
     return {
       id: item.id,
       collectionId: item.collection_id,
@@ -288,19 +317,35 @@ export class LibraryService {
       title: item.title,
       contentType: item.content_type,
       metadata: item.metadata,
-      sections: item.sections,
+      sections,
       status: item.status,
       version: item.version,
       sourceFileName: item.source_file_name ?? null,
       importTimestamp: item.import_timestamp?.toISOString() ?? null,
       createdAt: item.created_at.toISOString(),
       updatedAt: item.updated_at.toISOString(),
-      versions: item.versions.map((version) => ({
-        id: version.id,
-        versionNumber: version.version_number,
-        changeSummary: version.change_summary ?? null,
-        createdAt: version.created_at.toISOString(),
-      })),
+      versions:
+        role === UserRole.client
+          ? []
+          : item.versions.map((version) => ({
+              id: version.id,
+              versionNumber: version.version_number,
+              changeSummary: version.change_summary ?? null,
+              createdAt: version.created_at.toISOString(),
+            })),
+      decisions:
+        role === UserRole.client
+          ? []
+          : item.decisions.map((d) => ({
+              id: d.id,
+              action: d.action,
+              fromStatus: d.from_status,
+              toStatus: d.to_status,
+              reason: d.reason ?? null,
+              actorUserId: d.actor_user_id ?? null,
+              actorRole: d.actor_role,
+              createdAt: d.created_at.toISOString(),
+            })),
     };
   }
 
@@ -399,6 +444,11 @@ export class LibraryService {
     if (!item) throw new NotFoundException("Library item not found");
     const clinicId = clinicContext?.clinicId ?? item.clinic_id;
 
+    // Governance: edits are only allowed while item is a draft or after rejection (fix-and-resubmit).
+    if (item.status !== LibraryItemStatus.DRAFT && item.status !== LibraryItemStatus.REJECTED) {
+      throw new BadRequestException("Item is not editable in its current status");
+    }
+
     const nextContentType = dto.contentType ?? item.content_type;
     const metadata = dto.metadata
       ? normalizeMetadata(dto.metadata, nextContentType)
@@ -411,6 +461,9 @@ export class LibraryService {
     const nextVersion = item.version + 1;
     const chunks = buildChunks(dto.title ?? item.title, sections as any, nextVersion);
 
+    const nextStatus =
+      item.status === LibraryItemStatus.REJECTED ? LibraryItemStatus.DRAFT : item.status;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedItem = await tx.library_items.update({
         where: { id: item.id },
@@ -422,6 +475,7 @@ export class LibraryService {
           metadata: metadata as any,
           sections: sections as any,
           version: nextVersion,
+          status: nextStatus,
           updated_by: userId,
         },
       });
@@ -470,6 +524,20 @@ export class LibraryService {
         });
       }
 
+      if (item.status !== nextStatus) {
+        await tx.library_item_decisions.create({
+          data: {
+            item_id: item.id,
+            actor_user_id: userId,
+            actor_role: role,
+            action: "library.item.revised",
+            from_status: item.status,
+            to_status: nextStatus,
+            reason: dto.changeSummary ?? null,
+          },
+        });
+      }
+
       return updatedItem;
     });
 
@@ -495,6 +563,9 @@ export class LibraryService {
       where: { id, ...(clinicContext ? { clinic_id: clinicContext.clinicId } : {}) },
     });
     if (!item) throw new NotFoundException("Library item not found");
+    if (item.status !== LibraryItemStatus.APPROVED) {
+      throw new BadRequestException("Item must be approved before publishing");
+    }
 
     assertPublishable(item);
 
@@ -510,6 +581,18 @@ export class LibraryService {
           status: LibraryItemStatus.PUBLISHED,
           version: nextVersion,
           updated_by: userId,
+        },
+      });
+
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.published",
+          from_status: item.status,
+          to_status: LibraryItemStatus.PUBLISHED,
+          reason: dto.changeSummary ?? null,
         },
       });
 
@@ -551,6 +634,214 @@ export class LibraryService {
     return { id: updated.id, status: updated.status, version: updated.version };
   }
 
+  async submitItem(userId: string, role: UserRole, id: string) {
+    const clinicContext =
+      role === UserRole.admin ? null : await this.resolveClinicContext(userId, role, null);
+    const item = await this.prisma.library_items.findFirst({
+      where: { id, ...(clinicContext ? { clinic_id: clinicContext.clinicId } : {}) },
+    });
+    if (!item) throw new NotFoundException("Library item not found");
+    if (item.status !== LibraryItemStatus.DRAFT) {
+      throw new BadRequestException("Only draft items can be submitted");
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.library_items.update({
+        where: { id: item.id },
+        data: { status: LibraryItemStatus.SUBMITTED, updated_by: userId },
+      });
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.submitted",
+          from_status: item.status,
+          to_status: LibraryItemStatus.SUBMITTED,
+          reason: null,
+        },
+      });
+      return updatedItem;
+    });
+
+    await this.audit.log({
+      userId,
+      action: "library.item.submitted",
+      entityType: "library_item",
+      entityId: updated.id,
+    });
+
+    return { id: updated.id, status: updated.status };
+  }
+
+  async startReview(userId: string, role: UserRole, id: string) {
+    const clinicContext =
+      role === UserRole.admin ? null : await this.resolveClinicContext(userId, role, null);
+    const item = await this.prisma.library_items.findFirst({
+      where: { id, ...(clinicContext ? { clinic_id: clinicContext.clinicId } : {}) },
+    });
+    if (!item) throw new NotFoundException("Library item not found");
+    if (item.status !== LibraryItemStatus.SUBMITTED) {
+      throw new BadRequestException("Only submitted items can be moved to under review");
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.library_items.update({
+        where: { id: item.id },
+        data: { status: LibraryItemStatus.UNDER_REVIEW, updated_by: userId },
+      });
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.review_started",
+          from_status: item.status,
+          to_status: LibraryItemStatus.UNDER_REVIEW,
+          reason: null,
+        },
+      });
+      return updatedItem;
+    });
+
+    await this.audit.log({
+      userId,
+      action: "library.item.review_started",
+      entityType: "library_item",
+      entityId: updated.id,
+    });
+
+    return { id: updated.id, status: updated.status };
+  }
+
+  async approveItem(userId: string, role: UserRole, id: string) {
+    const clinicContext =
+      role === UserRole.admin ? null : await this.resolveClinicContext(userId, role, null);
+    const item = await this.prisma.library_items.findFirst({
+      where: { id, ...(clinicContext ? { clinic_id: clinicContext.clinicId } : {}) },
+    });
+    if (!item) throw new NotFoundException("Library item not found");
+    if (item.status !== LibraryItemStatus.UNDER_REVIEW) {
+      throw new BadRequestException("Only under-review items can be approved");
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.library_items.update({
+        where: { id: item.id },
+        data: { status: LibraryItemStatus.APPROVED, updated_by: userId },
+      });
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.approved",
+          from_status: item.status,
+          to_status: LibraryItemStatus.APPROVED,
+          reason: null,
+        },
+      });
+      return updatedItem;
+    });
+
+    await this.audit.log({
+      userId,
+      action: "library.item.approved",
+      entityType: "library_item",
+      entityId: updated.id,
+    });
+
+    return { id: updated.id, status: updated.status };
+  }
+
+  async rejectItem(userId: string, role: UserRole, id: string, reason: string) {
+    const clinicContext =
+      role === UserRole.admin ? null : await this.resolveClinicContext(userId, role, null);
+    const item = await this.prisma.library_items.findFirst({
+      where: { id, ...(clinicContext ? { clinic_id: clinicContext.clinicId } : {}) },
+    });
+    if (!item) throw new NotFoundException("Library item not found");
+    if (item.status !== LibraryItemStatus.SUBMITTED && item.status !== LibraryItemStatus.UNDER_REVIEW) {
+      throw new BadRequestException("Only submitted or under-review items can be rejected");
+    }
+
+    const normalized = reason.trim();
+    if (!normalized) throw new BadRequestException("reason is required");
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.library_items.update({
+        where: { id: item.id },
+        data: { status: LibraryItemStatus.REJECTED, updated_by: userId },
+      });
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.rejected",
+          from_status: item.status,
+          to_status: LibraryItemStatus.REJECTED,
+          reason: normalized,
+        },
+      });
+      return updatedItem;
+    });
+
+    await this.audit.log({
+      userId,
+      action: "library.item.rejected",
+      entityType: "library_item",
+      entityId: updated.id,
+    });
+
+    return { id: updated.id, status: updated.status };
+  }
+
+  async reviewQueue(
+    userId: string,
+    role: UserRole,
+    clinicIdOverride: string | null,
+    statusFilter: string | null,
+  ) {
+    const { clinicId } = await this.resolveClinicContext(userId, role, clinicIdOverride);
+    const allowedStatuses = new Set([
+      LibraryItemStatus.SUBMITTED,
+      LibraryItemStatus.UNDER_REVIEW,
+      LibraryItemStatus.APPROVED,
+    ]);
+    const normalized =
+      statusFilter === "SUBMITTED"
+        ? LibraryItemStatus.SUBMITTED
+        : statusFilter === "UNDER_REVIEW"
+          ? LibraryItemStatus.UNDER_REVIEW
+          : statusFilter === "APPROVED"
+            ? LibraryItemStatus.APPROVED
+            : null;
+
+    const statuses = normalized ? [normalized] : Array.from(allowedStatuses);
+    const items = await this.prisma.library_items.findMany({
+      where: { clinic_id: clinicId, status: { in: statuses } },
+      orderBy: [{ updated_at: "asc" }, { id: "asc" }],
+      include: { decisions: { orderBy: [{ created_at: "desc" }, { id: "asc" }], take: 1 } },
+      take: 500,
+    });
+
+    return {
+      items: items.map((item) => ({
+        id: item.id,
+        collectionId: item.collection_id,
+        title: item.title,
+        slug: item.slug,
+        contentType: item.content_type,
+        status: item.status,
+        version: item.version,
+        updatedAt: item.updated_at.toISOString(),
+        lastDecisionAt: item.decisions[0]?.created_at.toISOString() ?? null,
+        lastDecisionAction: item.decisions[0]?.action ?? null,
+      })),
+    };
+  }
+
   async archiveItem(userId: string, role: UserRole, id: string) {
     const clinicContext =
       role === UserRole.admin ? null : await this.resolveClinicContext(userId, role, null);
@@ -559,9 +850,23 @@ export class LibraryService {
     });
     if (!item) throw new NotFoundException("Library item not found");
 
-    const updated = await this.prisma.library_items.update({
-      where: { id: item.id },
-      data: { status: LibraryItemStatus.ARCHIVED, updated_by: userId },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedItem = await tx.library_items.update({
+        where: { id: item.id },
+        data: { status: LibraryItemStatus.ARCHIVED, updated_by: userId },
+      });
+      await tx.library_item_decisions.create({
+        data: {
+          item_id: item.id,
+          actor_user_id: userId,
+          actor_role: role,
+          action: "library.item.archived",
+          from_status: item.status,
+          to_status: LibraryItemStatus.ARCHIVED,
+          reason: null,
+        },
+      });
+      return updatedItem;
     });
 
     await this.audit.log({
@@ -584,19 +889,67 @@ export class LibraryService {
     const { clinicId } = await this.resolveClinicContext(userId, role, clinicIdOverride);
     const q = query.trim();
     if (!q) return { items: [] };
+    if (role === UserRole.client) {
+      // Safety boundary: clients must never see clinician-audience content via chunk search.
+      // Use client-audience sections as the search corpus (deterministic, best-effort).
+      const items = await this.prisma.library_items.findMany({
+        where: { clinic_id: clinicId, status: LibraryItemStatus.PUBLISHED },
+        select: { id: true, title: true, content_type: true, status: true, sections: true },
+      });
+      const qLower = q.toLowerCase();
+      const matches: Array<{
+        score: number;
+        itemId: string;
+        itemTitle: string;
+        contentType: string;
+        status: string;
+        headingPath: string;
+        snippet: string;
+      }> = [];
+
+      for (const item of items) {
+        const sections = this.filterClientSections(item.sections);
+        for (const section of sections) {
+          const headingPath =
+            String((section as any)?.headingPath ?? "").trim() ||
+            String((section as any)?.title ?? "").trim() ||
+            item.title;
+          const text = String((section as any)?.text ?? "");
+          const idx = text.toLowerCase().indexOf(qLower);
+          if (idx < 0) continue;
+          const start = Math.max(0, idx - 80);
+          const end = Math.min(text.length, idx + 160);
+          const snippet = text.slice(start, end);
+          const score = text.toLowerCase().split(qLower).length - 1;
+          matches.push({
+            score,
+            itemId: item.id,
+            itemTitle: item.title,
+            contentType: item.content_type,
+            status: item.status,
+            headingPath,
+            snippet,
+          });
+        }
+      }
+
+      matches.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.itemId !== b.itemId) return a.itemId.localeCompare(b.itemId);
+        return a.headingPath.localeCompare(b.headingPath);
+      });
+
+      return { items: matches.slice(0, limit).map(({ score: _score, ...row }) => row) };
+    }
+
     const chunks = await this.prisma.library_chunks.findMany({
       where: {
-        item: {
-          clinic_id: clinicId,
-          ...(role === UserRole.client ? { status: LibraryItemStatus.PUBLISHED } : {}),
-        },
+        item: { clinic_id: clinicId },
         text: { contains: q, mode: "insensitive" },
       },
       take: limit,
       include: {
-        item: {
-          select: { id: true, title: true, content_type: true, status: true },
-        },
+        item: { select: { id: true, title: true, content_type: true, status: true } },
       },
     });
 
@@ -613,24 +966,65 @@ export class LibraryService {
   }
 
   async ragQuery(userId: string, role: UserRole, dto: RagQueryDto) {
-    const { clinicId } = await this.resolveClinicContext(userId, role, null);
+    const { clinicId } = await this.resolveClinicContext(userId, role, dto.clinicId ?? null);
     const limit = Math.min(Math.max(dto.limit ?? 6, 1), 20);
     const q = dto.query.trim();
     if (!q) throw new BadRequestException("query required");
+    if (role === UserRole.client) {
+      // Safety boundary: clients must never see clinician-audience content via RAG retrieval.
+      const items = await this.prisma.library_items.findMany({
+        where: { clinic_id: clinicId, status: LibraryItemStatus.PUBLISHED },
+        select: { id: true, title: true, content_type: true, status: true, sections: true },
+      });
+      const qLower = q.toLowerCase();
+      const matches: Array<{
+        score: number;
+        itemId: string;
+        itemTitle: string;
+        contentType: string;
+        status: string;
+        headingPath: string;
+        text: string;
+      }> = [];
+      for (const item of items) {
+        const sections = this.filterClientSections(item.sections);
+        for (const section of sections) {
+          const headingPath =
+            String((section as any)?.headingPath ?? "").trim() ||
+            String((section as any)?.title ?? "").trim() ||
+            item.title;
+          const text = String((section as any)?.text ?? "");
+          if (!text.toLowerCase().includes(qLower)) continue;
+          const score = text.toLowerCase().split(qLower).length - 1;
+          matches.push({
+            score,
+            itemId: item.id,
+            itemTitle: item.title,
+            contentType: item.content_type,
+            status: item.status,
+            headingPath,
+            text,
+          });
+        }
+      }
+
+      matches.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.itemId !== b.itemId) return a.itemId.localeCompare(b.itemId);
+        return a.headingPath.localeCompare(b.headingPath);
+      });
+
+      return { query: q, chunks: matches.slice(0, limit).map(({ score: _s, ...row }) => row) };
+    }
 
     const chunks = await this.prisma.library_chunks.findMany({
       where: {
-        item: {
-          clinic_id: clinicId,
-          ...(role === UserRole.client ? { status: LibraryItemStatus.PUBLISHED } : {}),
-        },
+        item: { clinic_id: clinicId },
         text: { contains: q, mode: "insensitive" },
       },
       take: limit,
       include: {
-        item: {
-          select: { id: true, title: true, content_type: true, status: true },
-        },
+        item: { select: { id: true, title: true, content_type: true, status: true } },
       },
     });
 
@@ -706,6 +1100,75 @@ export class LibraryService {
       id: request.id,
       status: request.status,
       pdfSnapshotRef: pdfPath,
+    };
+  }
+
+  async listSignatureRequests(
+    userId: string,
+    role: UserRole,
+    filters: {
+      clinicId: string | null;
+      status: string | null;
+      clientId: string | null;
+      itemId: string | null;
+      limit: number;
+    },
+  ) {
+    const { clinicId, therapistId, clientId } = await this.resolveClinicContext(
+      userId,
+      role,
+      filters.clinicId,
+    );
+
+    const normalizedStatus =
+      filters.status === "pending" ||
+      filters.status === "signed" ||
+      filters.status === "canceled" ||
+      filters.status === "expired"
+        ? filters.status
+        : null;
+
+    const where: Record<string, unknown> = { clinic_id: clinicId };
+    if (normalizedStatus) where.status = normalizedStatus;
+    if (filters.itemId) where.item_id = filters.itemId;
+
+    if (role === UserRole.client) {
+      where.client_id = clientId;
+    } else if (role === UserRole.therapist) {
+      // Therapist can only see their own requests to avoid leaking cross-therapist client data.
+      where.clinician_id = therapistId;
+      if (filters.clientId) where.client_id = filters.clientId;
+    } else {
+      // CLINIC_ADMIN/admin can filter by client.
+      if (filters.clientId) where.client_id = filters.clientId;
+    }
+
+    const requests = await this.prisma.form_signature_requests.findMany({
+      where: where as any,
+      take: filters.limit,
+      orderBy: [{ requested_at: "desc" }, { id: "asc" }],
+      include: {
+        item: { select: { id: true, title: true, content_type: true, status: true } },
+        signatures: {
+          select: { signed_at: true, created_at: true },
+          orderBy: [{ created_at: "desc" }, { id: "asc" }],
+          take: 1,
+        },
+      },
+    });
+
+    return {
+      items: requests.map((r) => ({
+        id: r.id,
+        itemId: r.item_id,
+        itemTitle: r.item.title,
+        itemContentType: r.item.content_type,
+        itemStatus: r.item.status,
+        status: r.status,
+        requestedAt: r.requested_at.toISOString(),
+        dueAt: r.due_at ? r.due_at.toISOString() : null,
+        signedAt: r.signatures[0]?.signed_at ? r.signatures[0].signed_at.toISOString() : null,
+      })),
     };
   }
 

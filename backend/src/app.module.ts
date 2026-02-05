@@ -19,6 +19,13 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AdminModule } from './modules/admin/admin.module';
 import { ClinicModule } from './modules/clinic/clinic.module';
 import { LibraryModule } from './modules/library/library.module';
+import { AerReportModule } from './reports/aer/aer-report.module';
+import { AerRollupModule } from './reports/aer-rollup/aer-rollup.module';
+import { ExternalAccessModule } from './modules/external-access/external-access.module';
+import { SupervisorWeeklyPacketModule } from './reports/supervisor-weekly-packet/supervisor-weekly-packet.module';
+import { SupervisorActionsModule } from './supervisor-actions/supervisor-actions.module';
+import { AiSafetyGatewayModule } from './ai-safety-gateway/ai-safety-gateway.module';
+import { AiAssistModule } from './ai-assist/ai-assist.module';
 
 @Module({
   imports: [
@@ -44,6 +51,13 @@ import { LibraryModule } from './modules/library/library.module';
     AdminModule,
     ClinicModule,
     LibraryModule,
+    AerReportModule,
+    AerRollupModule,
+    ExternalAccessModule,
+    SupervisorWeeklyPacketModule,
+    SupervisorActionsModule,
+    AiSafetyGatewayModule,
+    AiAssistModule,
   ],
   controllers: [AppController],
   providers: [

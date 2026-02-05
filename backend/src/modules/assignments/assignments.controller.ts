@@ -13,10 +13,38 @@ import { UserRole } from "@prisma/client";
 import { CreateAssignmentDto } from "./dto/create-assignment.dto";
 import { UpdateAssignmentDto } from "./dto/update-assignment.dto";
 import { PublishAssignmentDto } from "./dto/publish-assignment.dto";
+import { CreateAssignmentFromLibraryDto } from "./dto/from-library.dto";
 
 @Controller("assignments")
 export class AssignmentsController {
   constructor(private assignments: AssignmentsService) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.therapist, UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("from-library")
+  async fromLibrary(@Req() req: any, @Body() dto: CreateAssignmentFromLibraryDto) {
+    return this.assignments.createFromLibrary(req.user.userId, req.user.role, dto);
+  }
+
+  // Clinician/admin convenience list: include library linkage where present.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.therapist, UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Get()
+  async list(
+    @Req() req: any,
+    @Query("clinicId") clinicId?: string,
+    @Query("clientId") clientId?: string,
+    @Query("status") status?: string,
+    @Query("limit") limitRaw?: string,
+  ) {
+    const limit = Math.min(Math.max(parseInt(limitRaw || "50", 10) || 50, 1), 200);
+    return this.assignments.listAssignments(req.user.userId, req.user.role, {
+      clinicId: clinicId?.trim() || null,
+      clientId: clientId?.trim() || null,
+      status: status?.trim() || null,
+      limit,
+    });
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.therapist)
@@ -75,6 +103,7 @@ export class AssignmentsController {
   async mineForTherapist(@Req() req: any): Promise<TherapistAssignmentListItemDto[]> {
     const data = await this.assignments.listForTherapist(req.user.userId, {
       q: null,
+      clientId: null,
       status: null,
       limit: 50,
       cursor: null,
@@ -92,12 +121,14 @@ export class AssignmentsController {
     @Query("status") status?: string,
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clientId") clientId?: string,
   ): Promise<{ items: TherapistAssignmentListItemDto[]; nextCursor: string | null }> {
     const limit = Math.min(Math.max(parseInt(limitRaw || "20", 10) || 20, 1), 100);
     const normalizedStatus =
       status === "draft" || status === "published" ? status : null;
     return this.assignments.listForTherapist(req.user.userId, {
       q: q?.trim() || null,
+      clientId: clientId?.trim() || null,
       status: normalizedStatus,
       limit,
       cursor: cursor || null,

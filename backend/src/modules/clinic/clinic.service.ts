@@ -448,9 +448,12 @@ export class ClinicService {
     };
   }
 
-  async listAssignments(userId: string, opts: { q: string | null; limit: number; cursor: string | null }) {
+  async listAssignments(userId: string, opts: { q: string | null; limit: number; cursor: string | null; clientId: string | null }) {
     const { clinicId } = await this.requireClinicMembership(userId);
     const where: any = { therapist: { clinic_id: clinicId } };
+    if (opts.clientId) {
+      where.client_id = opts.clientId;
+    }
     if (opts.q) {
       where.OR = [
         { title: { contains: opts.q, mode: "insensitive" } },
@@ -513,12 +516,16 @@ export class ClinicService {
       flagged: "all" | "flagged" | "unflagged";
       limit: number;
       cursor: string | null;
+      clientId: string | null;
     },
   ) {
     const { clinicId } = await this.requireClinicMembership(userId);
     const where: any = {
       assignment: { therapist: { clinic_id: clinicId } },
     };
+    if (opts.clientId) {
+      where.client_id = opts.clientId;
+    }
     if (opts.reviewed === "reviewed") where.reviewed_at = { not: null };
     if (opts.reviewed === "unreviewed") where.reviewed_at = null;
     if (opts.flagged === "flagged") where.flagged_at = { not: null };
@@ -585,9 +592,12 @@ export class ClinicService {
     };
   }
 
-  async listCheckins(userId: string, opts: { q: string | null; limit: number; cursor: string | null }) {
+  async listCheckins(userId: string, opts: { q: string | null; limit: number; cursor: string | null; clientId: string | null }) {
     const { clinicId } = await this.requireClinicMembership(userId);
     const where: any = { client: { therapist: { clinic_id: clinicId } } };
+    if (opts.clientId) {
+      where.client_id = opts.clientId;
+    }
     if (opts.q) {
       where.OR = [
         { client: { full_name: { contains: opts.q, mode: "insensitive" } } },

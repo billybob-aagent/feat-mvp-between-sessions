@@ -22,6 +22,7 @@ import { PublishLibraryItemDto } from "./dto/publish-library-item.dto";
 import { CreateSignatureRequestDto } from "./dto/create-signature-request.dto";
 import { SignLibraryItemDto } from "./dto/sign-library-item.dto";
 import { RagQueryDto } from "./dto/rag-query.dto";
+import { RejectLibraryItemDto } from "./dto/reject-library-item.dto";
 
 @Controller("library")
 export class LibraryController {
@@ -94,7 +95,7 @@ export class LibraryController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.therapist, UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
   @Post("items/:id/publish")
   async publishItem(
     @Req() req: any,
@@ -105,10 +106,53 @@ export class LibraryController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.therapist, UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
   @Post("items/:id/archive")
   async archiveItem(@Req() req: any, @Param("id") id: string) {
     return this.library.archiveItem(req.user.userId, req.user.role, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.therapist, UserRole.CLINIC_ADMIN)
+  @Post("items/:id/submit")
+  async submitItem(@Req() req: any, @Param("id") id: string) {
+    return this.library.submitItem(req.user.userId, req.user.role, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("items/:id/start-review")
+  async startReview(@Req() req: any, @Param("id") id: string) {
+    return this.library.startReview(req.user.userId, req.user.role, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("items/:id/approve")
+  async approve(@Req() req: any, @Param("id") id: string) {
+    return this.library.approveItem(req.user.userId, req.user.role, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("items/:id/reject")
+  async reject(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() dto: RejectLibraryItemDto,
+  ) {
+    return this.library.rejectItem(req.user.userId, req.user.role, id, dto.reason);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Get("review-queue")
+  async reviewQueue(
+    @Req() req: any,
+    @Query("status") status?: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    return this.library.reviewQueue(req.user.userId, req.user.role, clinicId ?? null, status ?? null);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -140,6 +184,27 @@ export class LibraryController {
     @Body() dto: CreateSignatureRequestDto,
   ) {
     return this.library.createSignatureRequest(req.user.userId, req.user.role, itemId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.therapist, UserRole.client, UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Get("forms/signature-requests")
+  async listSignatureRequests(
+    @Req() req: any,
+    @Query("status") status?: string,
+    @Query("clientId") clientId?: string,
+    @Query("itemId") itemId?: string,
+    @Query("limit") limitRaw?: string,
+    @Query("clinicId") clinicId?: string,
+  ) {
+    const limit = Math.min(Math.max(parseInt(limitRaw || "50", 10) || 50, 1), 200);
+    return this.library.listSignatureRequests(req.user.userId, req.user.role, {
+      clinicId: clinicId ?? null,
+      status: status ?? null,
+      clientId: clientId ?? null,
+      itemId: itemId ?? null,
+      limit,
+    });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

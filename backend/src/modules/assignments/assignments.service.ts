@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { LibraryItemStatus, Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AuditService } from "../audit/audit.service";
@@ -22,6 +22,13 @@ export type TherapistAssignmentListItemDto = {
     fullName: string;
     email: string;
   };
+  librarySource: {
+    itemId: string;
+    version: number | null;
+    title: string | null;
+    slug: string | null;
+    contentType: string | null;
+  } | null;
 };
 
 export type TherapistAssignmentDetailDto = {
@@ -37,6 +44,13 @@ export type TherapistAssignmentDetailDto = {
     fullName: string;
     email: string;
   };
+  librarySource: {
+    itemId: string;
+    version: number | null;
+    title: string | null;
+    slug: string | null;
+    contentType: string | null;
+  } | null;
 };
 
 export type ClientAssignmentListItemDto = {
@@ -48,6 +62,13 @@ export type ClientAssignmentListItemDto = {
   responseCount: number;
   lastSubmittedAt: string | null;
   lastReviewedAt: string | null;
+  librarySource: {
+    itemId: string;
+    version: number | null;
+    title: string | null;
+    slug: string | null;
+    contentType: string | null;
+  } | null;
 };
 
 export type ClientAssignmentDetailDto = {
@@ -57,6 +78,32 @@ export type ClientAssignmentDetailDto = {
   title: string;
   description: string | null;
   responseCount: number;
+  librarySource: {
+    itemId: string;
+    version: number | null;
+    title: string | null;
+    slug: string | null;
+    contentType: string | null;
+  } | null;
+};
+
+export type AssignmentListRowDto = {
+  id: string;
+  dueDate: string | null;
+  createdAt: string;
+  status: "draft" | "published";
+  publishedAt: string | null;
+  title: string;
+  description: string | null;
+  clientId: string;
+  therapistId: string;
+  librarySource: {
+    itemId: string;
+    version: number | null;
+    title: string | null;
+    slug: string | null;
+    contentType: string | null;
+  } | null;
 };
 
 @Injectable()
@@ -166,6 +213,11 @@ export class AssignmentsService {
         title: true,
         description: true,
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
 
         // stats
         _count: { select: { responses: true } },
@@ -193,6 +245,15 @@ export class AssignmentsService {
       lastReviewedAt: a.responses[0]?.reviewed_at
         ? a.responses[0].reviewed_at.toISOString()
         : null,
+      librarySource: a.library_item_id
+        ? {
+            itemId: a.library_item_id,
+            version: a.library_item_version ?? null,
+            title: a.library_source_title ?? null,
+            slug: a.library_source_slug ?? null,
+            contentType: a.library_source_content_type ?? null,
+          }
+        : null,
     }));
 
     return {
@@ -219,6 +280,11 @@ export class AssignmentsService {
         title: true,
         description: true,
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
         _count: { select: { responses: true } },
       },
     });
@@ -234,12 +300,27 @@ export class AssignmentsService {
       title: a.title ?? a.prompt?.title ?? "Assignment",
       description: a.description ?? a.prompt?.content ?? null,
       responseCount: a._count.responses,
+      librarySource: a.library_item_id
+        ? {
+            itemId: a.library_item_id,
+            version: a.library_item_version ?? null,
+            title: a.library_source_title ?? null,
+            slug: a.library_source_slug ?? null,
+            contentType: a.library_source_content_type ?? null,
+          }
+        : null,
     } as ClientAssignmentDetailDto;
   }
 
   async listForTherapist(
     therapistUserId: string,
-    opts: { q: string | null; status: "draft" | "published" | null; limit: number; cursor: string | null },
+    opts: {
+      q: string | null;
+      clientId: string | null;
+      status: "draft" | "published" | null;
+      limit: number;
+      cursor: string | null;
+    },
   ): Promise<{ items: TherapistAssignmentListItemDto[]; nextCursor: string | null }> {
     const therapist = await this.prisma.therapists.findFirst({
       where: { user_id: therapistUserId },
@@ -248,6 +329,7 @@ export class AssignmentsService {
 
     const where: Prisma.assignmentsWhereInput = { therapist_id: therapist.id };
     if (opts.status) where.status = opts.status;
+    if (opts.clientId) where.client_id = opts.clientId;
     if (opts.q) {
       where.OR = [
         { title: { contains: opts.q, mode: "insensitive" } },
@@ -276,6 +358,11 @@ export class AssignmentsService {
         title: true,
         description: true,
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
         client: {
           select: {
             id: true,
@@ -302,6 +389,15 @@ export class AssignmentsService {
         fullName: row.client.full_name,
         email: row.client.user.email,
       },
+      librarySource: row.library_item_id
+        ? {
+            itemId: row.library_item_id,
+            version: row.library_item_version ?? null,
+            title: row.library_source_title ?? null,
+            slug: row.library_source_slug ?? null,
+            contentType: row.library_source_content_type ?? null,
+          }
+        : null,
     }));
 
     return {
@@ -330,6 +426,11 @@ export class AssignmentsService {
         title: true,
         description: true,
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
         therapist_id: true,
         client: {
           select: {
@@ -357,6 +458,15 @@ export class AssignmentsService {
         fullName: row.client.full_name,
         email: row.client.user.email,
       },
+      librarySource: row.library_item_id
+        ? {
+            itemId: row.library_item_id,
+            version: row.library_item_version ?? null,
+            title: row.library_source_title ?? null,
+            slug: row.library_source_slug ?? null,
+            contentType: row.library_source_content_type ?? null,
+          }
+        : null,
     };
   }
 
@@ -424,6 +534,268 @@ export class AssignmentsService {
         fullName: client.full_name,
         email: client.user.email,
       },
+      librarySource: null,
+    };
+  }
+
+  private extractClientSections(raw: unknown): Array<{ heading: string; text: string }> {
+    const sections = Array.isArray(raw)
+      ? (raw as any[])
+      : raw && typeof raw === "object" && Array.isArray((raw as any).sections)
+        ? ((raw as any).sections as any[])
+        : [];
+
+    return sections
+      .filter((s) => String(s?.audience ?? "").trim().toLowerCase() === "client")
+      .map((s) => ({
+        heading:
+          String(s?.title ?? "").trim() ||
+          String(s?.headingPath ?? "").trim() ||
+          "Section",
+        text: String(s?.text ?? ""),
+      }))
+      .filter((s) => s.text.trim().length > 0);
+  }
+
+  private buildClientDescriptionFromLibrary(params: {
+    itemTitle: string;
+    note: string | null;
+    clientSections: Array<{ heading: string; text: string }>;
+  }) {
+    const lines: string[] = [];
+    if (params.note) {
+      lines.push(`Note from clinician: ${params.note.trim()}`);
+      lines.push("");
+    }
+    lines.push(params.itemTitle);
+    lines.push("");
+    for (const section of params.clientSections) {
+      lines.push(section.heading);
+      lines.push(section.text.trim());
+      lines.push("");
+    }
+    return lines.join("\n").trim() || null;
+  }
+
+  async createFromLibrary(
+    userId: string,
+    role: UserRole,
+    dto: {
+      clinicId?: string | null;
+      clientId: string;
+      libraryItemId: string;
+      dueDate?: string | null;
+      note?: string | null;
+      program?: string | null;
+      assignmentTitleOverride?: string | null;
+    },
+  ) {
+    // Resolve clinic + therapist context.
+    let clinicId: string;
+    let therapistId: string | null = null;
+
+    if (role === UserRole.admin) {
+      if (!dto.clinicId) throw new BadRequestException("clinicId is required for admin requests");
+      clinicId = dto.clinicId;
+    } else if (role === UserRole.CLINIC_ADMIN) {
+      const membership = await this.prisma.clinic_memberships.findFirst({
+        where: { user_id: userId },
+      });
+      if (!membership) throw new ForbiddenException("Clinic membership required");
+      clinicId = membership.clinic_id;
+      if (dto.clinicId && dto.clinicId !== clinicId) {
+        throw new ForbiddenException("Invalid clinic");
+      }
+    } else {
+      const therapist = await this.prisma.therapists.findFirst({
+        where: { user_id: userId },
+        select: { id: true, clinic_id: true },
+      });
+      if (!therapist?.clinic_id) throw new ForbiddenException("Not a therapist");
+      clinicId = therapist.clinic_id;
+      therapistId = therapist.id;
+      if (dto.clinicId && dto.clinicId !== clinicId) {
+        throw new ForbiddenException("Invalid clinic");
+      }
+    }
+
+    // Client must belong to clinic.
+    const client = await this.prisma.clients.findUnique({
+      where: { id: dto.clientId },
+      select: { id: true, therapist_id: true, therapist: { select: { clinic_id: true } } },
+    });
+    if (!client) throw new NotFoundException("Client not found");
+    if (client.therapist?.clinic_id !== clinicId) {
+      throw new ForbiddenException("Client does not belong to clinic");
+    }
+    if (role === UserRole.therapist && therapistId && client.therapist_id !== therapistId) {
+      throw new ForbiddenException("Client does not belong to this therapist");
+    }
+
+    // Library item must be published and belong to clinic.
+    const item = await this.prisma.library_items.findFirst({
+      where: { id: dto.libraryItemId, clinic_id: clinicId, status: LibraryItemStatus.PUBLISHED },
+      select: { id: true, title: true, slug: true, content_type: true, status: true, version: true, sections: true },
+    });
+    if (!item) throw new NotFoundException("Library item not found (or not published)");
+
+    const clientSections = this.extractClientSections(item.sections);
+    if (clientSections.length === 0) {
+      throw new BadRequestException("Library item has no client-safe sections");
+    }
+
+    const title =
+      dto.assignmentTitleOverride?.trim() ||
+      item.title;
+
+    const description = this.buildClientDescriptionFromLibrary({
+      itemTitle: item.title,
+      note: dto.note?.trim() || null,
+      clientSections,
+    });
+
+    // Assignments are published immediately so the client can complete them.
+    const created = await this.prisma.assignments.create({
+      data: {
+        therapist_id: therapistId ?? client.therapist_id,
+        client_id: client.id,
+        prompt_id: null,
+        title,
+        description,
+        status: "published",
+        published_at: new Date(),
+        due_date: dto.dueDate ? new Date(dto.dueDate) : null,
+        recurrence: null,
+        library_item_id: item.id,
+        library_item_version: item.version,
+        library_source_title: item.title,
+        library_source_slug: item.slug,
+        library_source_content_type: item.content_type,
+      },
+      select: {
+        id: true,
+        due_date: true,
+        created_at: true,
+        status: true,
+        published_at: true,
+        title: true,
+        description: true,
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
+        therapist_id: true,
+        client_id: true,
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      action: "assignment.create_from_library",
+      entityType: "assignment",
+      entityId: created.id,
+      metadata: {
+        clinicId,
+        clientId: client.id,
+        libraryItemId: item.id,
+        libraryItemVersion: item.version,
+        dueDate: dto.dueDate ?? null,
+        program: dto.program ?? null,
+      },
+    });
+
+    return {
+      id: created.id,
+      status: created.status,
+      publishedAt: created.published_at ? created.published_at.toISOString() : null,
+    };
+  }
+
+  async listAssignments(
+    userId: string,
+    role: UserRole,
+    opts: { clinicId: string | null; clientId: string | null; status: string | null; limit: number },
+  ): Promise<{ items: AssignmentListRowDto[] }> {
+    let clinicId: string;
+    let therapistId: string | null = null;
+    if (role === UserRole.admin) {
+      if (!opts.clinicId) throw new BadRequestException("clinicId is required for admin requests");
+      clinicId = opts.clinicId;
+    } else if (role === UserRole.CLINIC_ADMIN) {
+      const membership = await this.prisma.clinic_memberships.findFirst({
+        where: { user_id: userId },
+      });
+      if (!membership) throw new ForbiddenException("Clinic membership required");
+      clinicId = membership.clinic_id;
+    } else {
+      const therapist = await this.prisma.therapists.findFirst({
+        where: { user_id: userId },
+        select: { id: true, clinic_id: true },
+      });
+      if (!therapist?.clinic_id) throw new ForbiddenException("Not a therapist");
+      clinicId = therapist.clinic_id;
+      therapistId = therapist.id;
+    }
+
+    const normalizedStatus = opts.status === "active" || opts.status === "completed" || opts.status === "all" ? opts.status : "all";
+
+    const where: Prisma.assignmentsWhereInput = {
+      therapist: { clinic_id: clinicId },
+    };
+    if (opts.clientId) where.client_id = opts.clientId;
+    if (role === UserRole.therapist && therapistId) where.therapist_id = therapistId;
+
+    const rows = await this.prisma.assignments.findMany({
+      where,
+      take: opts.limit,
+      orderBy: [{ created_at: "desc" }, { id: "asc" }],
+      select: {
+        id: true,
+        due_date: true,
+        created_at: true,
+        status: true,
+        published_at: true,
+        title: true,
+        description: true,
+        therapist_id: true,
+        client_id: true,
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
+        _count: { select: { responses: true } },
+      },
+    });
+
+    const filtered = normalizedStatus === "all"
+      ? rows
+      : normalizedStatus === "completed"
+        ? rows.filter((r) => (r._count.responses ?? 0) > 0)
+        : rows.filter((r) => (r._count.responses ?? 0) === 0);
+
+    return {
+      items: filtered.map((row) => ({
+        id: row.id,
+        dueDate: row.due_date ? row.due_date.toISOString() : null,
+        createdAt: row.created_at.toISOString(),
+        status: row.status,
+        publishedAt: row.published_at ? row.published_at.toISOString() : null,
+        title: row.title ?? "Assignment",
+        description: row.description ?? null,
+        clientId: row.client_id,
+        therapistId: row.therapist_id,
+        librarySource: row.library_item_id
+          ? {
+              itemId: row.library_item_id,
+              version: row.library_item_version ?? null,
+              title: row.library_source_title ?? null,
+              slug: row.library_source_slug ?? null,
+              contentType: row.library_source_content_type ?? null,
+            }
+          : null,
+      })),
     };
   }
 
@@ -490,6 +862,11 @@ export class AssignmentsService {
           select: { id: true, full_name: true, user: { select: { email: true } } },
         },
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
       },
     });
 
@@ -520,6 +897,15 @@ export class AssignmentsService {
         fullName: client.full_name,
         email: client.user.email,
       },
+      librarySource: updated.library_item_id
+        ? {
+            itemId: updated.library_item_id,
+            version: updated.library_item_version ?? null,
+            title: updated.library_source_title ?? null,
+            slug: updated.library_source_slug ?? null,
+            contentType: updated.library_source_content_type ?? null,
+          }
+        : null,
     };
   }
 
@@ -559,6 +945,11 @@ export class AssignmentsService {
         title: true,
         description: true,
         prompt: { select: { title: true, content: true } },
+        library_item_id: true,
+        library_item_version: true,
+        library_source_title: true,
+        library_source_slug: true,
+        library_source_content_type: true,
         client: {
           select: {
             id: true,
@@ -619,6 +1010,15 @@ export class AssignmentsService {
         fullName: updated.client.full_name,
         email: updated.client.user.email,
       },
+      librarySource: updated.library_item_id
+        ? {
+            itemId: updated.library_item_id,
+            version: updated.library_item_version ?? null,
+            title: updated.library_source_title ?? null,
+            slug: updated.library_source_slug ?? null,
+            contentType: updated.library_source_content_type ?? null,
+          }
+        : null,
     };
   }
 

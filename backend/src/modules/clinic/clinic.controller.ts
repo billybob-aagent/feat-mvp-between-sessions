@@ -107,12 +107,14 @@ export class ClinicController {
     @Query("q") q?: string,
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clientId") clientId?: string,
   ) {
     const limit = Math.min(Math.max(parseInt(limitRaw || "25", 10) || 25, 1), 100);
     return this.clinic.listAssignments(req.user.userId, {
       q: q?.trim() || null,
       limit,
       cursor: cursor || null,
+      clientId: clientId?.trim() || null,
     });
   }
 
@@ -126,6 +128,7 @@ export class ClinicController {
     @Query("flagged") flagged?: "all" | "flagged" | "unflagged",
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clientId") clientId?: string,
   ) {
     const limit = Math.min(Math.max(parseInt(limitRaw || "25", 10) || 25, 1), 100);
     return this.clinic.listResponses(req.user.userId, {
@@ -134,6 +137,7 @@ export class ClinicController {
       flagged: flagged || "all",
       limit,
       cursor: cursor || null,
+      clientId: clientId?.trim() || null,
     });
   }
 
@@ -145,12 +149,14 @@ export class ClinicController {
     @Query("q") q?: string,
     @Query("limit") limitRaw?: string,
     @Query("cursor") cursor?: string,
+    @Query("clientId") clientId?: string,
   ) {
     const limit = Math.min(Math.max(parseInt(limitRaw || "25", 10) || 25, 1), 100);
     return this.clinic.listCheckins(req.user.userId, {
       q: q?.trim() || null,
       limit,
       cursor: cursor || null,
+      clientId: clientId?.trim() || null,
     });
   }
 
