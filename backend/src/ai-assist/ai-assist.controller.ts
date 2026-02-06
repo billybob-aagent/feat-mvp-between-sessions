@@ -6,7 +6,10 @@ import { RolesGuard } from "../modules/auth/roles.guard";
 import { Roles } from "../modules/auth/roles.decorator";
 import { UserRole } from "@prisma/client";
 import { AdherenceAssistDto } from "./dto/adherence-assist.dto";
+import { AdherenceFeedbackDraftDto } from "./dto/adherence-feedback.dto";
 import { AssessmentAssistDto } from "./dto/assessment-assist.dto";
+import { ProgressSummaryDraftDto } from "./dto/progress-summary.dto";
+import { SupervisorSummaryDraftDto } from "./dto/supervisor-summary.dto";
 import { buildDateRangeFromParts, parseDateOnly } from "../reports/aer/aer-report.utils";
 
 const parseDateOnlyOrThrow = (value: string, label: string) => {
@@ -56,7 +59,7 @@ export class AiAssistController {
       },
     });
 
-    if (!result.ok) {
+    if (result.ok === false) {
       res.status(403);
     }
 
@@ -83,7 +86,123 @@ export class AiAssistController {
       },
     });
 
-    if (!result.ok) {
+    if (result.ok === false) {
+      res.status(403);
+    }
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN, UserRole.therapist)
+  @Post("progress-summary/preview")
+  async progressSummaryPreview(@Req() req: any, @Body() dto: ProgressSummaryDraftDto) {
+    validatePeriod(dto.periodStart, dto.periodEnd);
+
+    return this.assist.progressSummaryPreview({
+      userId: req.user.userId,
+      role: req.user.role,
+      payload: {
+        clinicId: dto.clinicId,
+        clientId: dto.clientId,
+        periodStart: dto.periodStart,
+        periodEnd: dto.periodEnd,
+      },
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("supervisor-summary/preview")
+  async supervisorSummaryPreview(@Req() req: any, @Body() dto: SupervisorSummaryDraftDto) {
+    validatePeriod(dto.periodStart, dto.periodEnd);
+
+    return this.assist.supervisorSummaryPreview({
+      userId: req.user.userId,
+      role: req.user.role,
+      payload: {
+        clinicId: dto.clinicId,
+        clientId: dto.clientId,
+        periodStart: dto.periodStart,
+        periodEnd: dto.periodEnd,
+      },
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN, UserRole.therapist)
+  @Post("progress-summary")
+  async progressSummaryDraft(
+    @Req() req: any,
+    @Body() dto: ProgressSummaryDraftDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    validatePeriod(dto.periodStart, dto.periodEnd);
+
+    const result = await this.assist.progressSummaryDraft({
+      userId: req.user.userId,
+      role: req.user.role,
+      payload: {
+        clinicId: dto.clinicId,
+        clientId: dto.clientId,
+        periodStart: dto.periodStart,
+        periodEnd: dto.periodEnd,
+      },
+    });
+
+    if (result.ok === false) {
+      res.status(403);
+    }
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("supervisor-summary")
+  async supervisorSummaryDraft(
+    @Req() req: any,
+    @Body() dto: SupervisorSummaryDraftDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    validatePeriod(dto.periodStart, dto.periodEnd);
+
+    const result = await this.assist.supervisorSummaryDraft({
+      userId: req.user.userId,
+      role: req.user.role,
+      payload: {
+        clinicId: dto.clinicId,
+        clientId: dto.clientId,
+        periodStart: dto.periodStart,
+        periodEnd: dto.periodEnd,
+      },
+    });
+
+    if (result.ok === false) {
+      res.status(403);
+    }
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN, UserRole.therapist)
+  @Post("adherence-feedback")
+  async adherenceFeedbackDraft(
+    @Req() req: any,
+    @Body() dto: AdherenceFeedbackDraftDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.assist.adherenceFeedbackDraft({
+      userId: req.user.userId,
+      role: req.user.role,
+      payload: {
+        clinicId: dto.clinicId,
+        responseId: dto.responseId,
+      },
+    });
+
+    if (result.ok === false) {
       res.status(403);
     }
 

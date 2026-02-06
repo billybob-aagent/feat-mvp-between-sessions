@@ -24,7 +24,7 @@ export class AiSafetyGatewayController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN, UserRole.therapist)
   @Get("settings/:clinicId")
   async getSettings(@Req() req: any, @Param("clinicId") clinicId: string) {
     return this.gateway.getSettings({

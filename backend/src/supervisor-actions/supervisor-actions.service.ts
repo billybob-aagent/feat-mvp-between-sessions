@@ -219,6 +219,71 @@ export class SupervisorActionsService {
     };
   }
 
+  async updateEscalationNote(params: {
+    userId: string;
+    role: UserRole;
+    clinicId: string;
+    escalationId: string;
+    note?: string | null;
+    ip?: string;
+    userAgent?: string;
+  }) {
+    const normalizedRole = String(params.role);
+    if (normalizedRole !== UserRole.admin && normalizedRole !== UserRole.CLINIC_ADMIN) {
+      throw new ForbiddenException("Insufficient role");
+    }
+
+    const clinic = await this.prisma.clinics.findUnique({
+      where: { id: params.clinicId },
+      select: { id: true },
+    });
+    if (!clinic) {
+      throw new NotFoundException("Clinic not found");
+    }
+
+    await this.ensureClinicAccess(params.userId, params.role, params.clinicId);
+
+    const escalation = await this.prisma.supervisor_escalations.findUnique({
+      where: { id: params.escalationId },
+    });
+    if (!escalation) {
+      throw new NotFoundException("Escalation not found");
+    }
+    if (escalation.clinic_id !== params.clinicId) {
+      throw new ForbiddenException("Escalation does not belong to clinic");
+    }
+
+    const noteValue = params.note?.trim();
+    const updated = await this.prisma.supervisor_escalations.update({
+      where: { id: escalation.id },
+      data: { note: noteValue ? noteValue : null },
+      select: { id: true, note: true },
+    });
+
+    await this.audit.log({
+      userId: params.userId,
+      action: "SUPERVISOR_ESCALATION_NOTE_UPDATED",
+      entityType: "supervisor_escalation",
+      entityId: updated.id,
+      ip: params.ip,
+      userAgent: params.userAgent,
+      metadata: {
+        clinicId: params.clinicId,
+        clientId: escalation.client_id,
+        escalationId: updated.id,
+        periodStart: formatDateOnly(dateOnlyPartsFromUTC(escalation.period_start)),
+        periodEnd: formatDateOnly(dateOnlyPartsFromUTC(escalation.period_end)),
+        note: updated.note,
+      },
+    });
+
+    return {
+      ok: true,
+      escalationId: updated.id,
+      note: updated.note ?? null,
+    };
+  }
+
   async listEscalations(params: {
     userId: string;
     role: UserRole;

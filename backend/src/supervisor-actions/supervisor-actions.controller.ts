@@ -51,6 +51,28 @@ export class SupervisorActionsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
+  @Post("escalations/:escalationId/note")
+  async updateNote(
+    @Req() req: any,
+    @Param("escalationId") escalationId: string,
+    @Body() dto: { clinicId?: string; note?: string | null },
+  ) {
+    if (!dto.clinicId) {
+      throw new BadRequestException("clinicId is required");
+    }
+    return this.service.updateEscalationNote({
+      userId: req.user.userId,
+      role: req.user.role,
+      clinicId: dto.clinicId,
+      escalationId,
+      note: dto.note ?? null,
+      ip: req.ip,
+      userAgent: req.headers?.["user-agent"],
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
   @Get("escalations/:clinicId")
   async list(
     @Req() req: any,

@@ -107,6 +107,7 @@ export type ClinicResponseListItem = {
   flaggedAt: string | null;
   hasTherapistNote: boolean;
   voiceStorageKey: string | null;
+  feedbackCount: number;
 };
 
 export type ClinicCheckinListItem = {

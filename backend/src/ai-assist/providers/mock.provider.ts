@@ -27,6 +27,11 @@ const extractSources = (prompt: string) => {
   }
 };
 
+const extractPurpose = (prompt: string) => {
+  const match = prompt.match(/PURPOSE:\s*([A-Z0-9_]+)/i);
+  return match ? match[1].trim() : "";
+};
+
 const hashSeed = (input: string) =>
   parseInt(createHash("sha256").update(input).digest("hex").slice(0, 8), 16);
 
@@ -211,11 +216,42 @@ const buildAssessmentResult = (payload: any, sources: any[]) => {
   return { draft_sections, gaps_questions, evidence_mapping, sources_used: sourcesUsed };
 };
 
+const buildDraftResult = (payload: any, label: string) => {
+  const evidenceRefs = Array.isArray(payload?.evidence_refs) ? payload.evidence_refs : [];
+  const snippet = evidenceRefs.length > 0 ? evidenceRefs.slice(0, 2).join("; ") : "reviewed evidence";
+  return {
+    text: `Draft ${label} based on ${snippet}.`,
+    evidence_refs: evidenceRefs,
+  };
+};
+
+const buildFeedbackDraft = (payload: any) => {
+  const assignment = payload?.assignment_title || "the assignment";
+  const date = payload?.response_date || "the response date";
+  return {
+    text: `Thank you for completing ${assignment} on ${date}. Please add any helpful details for follow-up in session.`,
+    evidence_refs: Array.isArray(payload?.evidence_refs) ? payload.evidence_refs : [],
+  };
+};
+
 export class MockProvider implements LlmProvider {
   async generateStructured<T>(input: LlmGenerateInput): Promise<T> {
     const payload = extractPayload(input.prompt);
     const seed = hashSeed(input.prompt);
     const sources = extractSources(input.prompt);
+    const purposeLabel = extractPurpose(input.prompt).toUpperCase();
+
+    if (purposeLabel === "ADHERENCE_FEEDBACK_DRAFT") {
+      return buildFeedbackDraft(payload) as T;
+    }
+
+    if (purposeLabel === "CLIENT_PROGRESS_SUMMARY_DRAFT") {
+      return buildDraftResult(payload, "progress summary") as T;
+    }
+
+    if (purposeLabel === "SUPERVISOR_SUMMARY_DRAFT") {
+      return buildDraftResult(payload, "supervisor summary") as T;
+    }
 
     if (String(input.purpose).toUpperCase() === "ADHERENCE_REVIEW") {
       return buildAdherenceResult(payload, seed, sources) as T;

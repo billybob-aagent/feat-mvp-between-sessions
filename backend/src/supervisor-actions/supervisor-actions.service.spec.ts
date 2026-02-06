@@ -291,4 +291,72 @@ describe("SupervisorActionsService", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it("updates escalation note and audits", async () => {
+    prismaMock.clinics.findUnique.mockResolvedValue({ id: "clinic-1" });
+    prismaMock.clinic_memberships.findFirst.mockResolvedValue({ id: "membership-1" });
+    prismaMock.supervisor_escalations.findUnique.mockResolvedValue({
+      id: "esc-10",
+      clinic_id: "clinic-1",
+      client_id: "client-1",
+      period_start: new Date("2026-01-01T00:00:00.000Z"),
+      period_end: new Date("2026-01-07T00:00:00.000Z"),
+    });
+    prismaMock.supervisor_escalations.update.mockResolvedValue({
+      id: "esc-10",
+      note: "Draft note",
+    });
+
+    const result = await service.updateEscalationNote({
+      userId: "user-1",
+      role: UserRole.CLINIC_ADMIN,
+      clinicId: "clinic-1",
+      escalationId: "esc-10",
+      note: "Draft note",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.escalationId).toBe("esc-10");
+    expect(auditMock.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "SUPERVISOR_ESCALATION_NOTE_UPDATED",
+        entityId: "esc-10",
+        metadata: expect.objectContaining({ escalationId: "esc-10" }),
+      }),
+    );
+  });
+
+  it("rejects update note for clinic mismatch", async () => {
+    prismaMock.clinics.findUnique.mockResolvedValue({ id: "clinic-1" });
+    prismaMock.clinic_memberships.findFirst.mockResolvedValue({ id: "membership-1" });
+    prismaMock.supervisor_escalations.findUnique.mockResolvedValue({
+      id: "esc-11",
+      clinic_id: "clinic-other",
+      client_id: "client-1",
+      period_start: new Date("2026-01-01T00:00:00.000Z"),
+      period_end: new Date("2026-01-07T00:00:00.000Z"),
+    });
+
+    await expect(
+      service.updateEscalationNote({
+        userId: "user-1",
+        role: UserRole.CLINIC_ADMIN,
+        clinicId: "clinic-1",
+        escalationId: "esc-11",
+        note: "Draft note",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("blocks update note for non-admin roles", async () => {
+    await expect(
+      service.updateEscalationNote({
+        userId: "user-1",
+        role: UserRole.therapist,
+        clinicId: "clinic-1",
+        escalationId: "esc-12",
+        note: "Draft note",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

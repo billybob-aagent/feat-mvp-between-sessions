@@ -172,6 +172,7 @@ export default function ClinicResponsesPage() {
               <TableHead>Therapist</TableHead>
               <TableHead>Reviewed</TableHead>
               <TableHead>Flagged</TableHead>
+              <TableHead>Feedback</TableHead>
             </tr>
           </TableHeader>
           <TableBody>
@@ -193,6 +194,11 @@ export default function ClinicResponsesPage() {
                 <TableCell>
                   <Badge variant={item.flaggedAt ? "warning" : "neutral"}>
                     {item.flaggedAt ? "Flagged" : "Clear"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={item.feedbackCount > 0 ? "info" : "neutral"}>
+                    {item.feedbackCount > 0 ? `${item.feedbackCount} saved` : "—"}
                   </Badge>
                 </TableCell>
               </TableRow>

@@ -14,6 +14,8 @@ const redactionStats = {
   names: 0,
 };
 
+const prismaMock = {};
+
 describe("AiAssistService", () => {
   it("returns denied when gateway denies", async () => {
     const gatewayMock = {
@@ -31,6 +33,7 @@ describe("AiAssistService", () => {
     const service = new AiAssistService(
       gatewayMock as any,
       retrievalMock as any,
+      prismaMock as any,
       providerMock as any,
     );
 
@@ -100,6 +103,7 @@ describe("AiAssistService", () => {
     const service = new AiAssistService(
       gatewayMock as any,
       retrievalMock as any,
+      prismaMock as any,
       providerMock as any,
     );
 
@@ -162,6 +166,7 @@ describe("AiAssistService", () => {
     const service = new AiAssistService(
       gatewayMock as any,
       retrievalMock as any,
+      prismaMock as any,
       providerMock as any,
     );
 
@@ -225,6 +230,7 @@ describe("AiAssistService", () => {
     const service = new AiAssistService(
       gatewayMock as any,
       retrievalMock as any,
+      prismaMock as any,
       providerMock as any,
     );
 
@@ -280,6 +286,7 @@ describe("AiAssistService", () => {
     const service = new AiAssistService(
       gatewayMock as any,
       retrievalMock as any,
+      prismaMock as any,
       providerMock as any,
     );
 
