@@ -14,12 +14,7 @@ const prismaMock = {
 describe("AerReportService", () => {
   let service: AerReportService;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    service = new AerReportService(prismaMock as any);
-  });
-
-  it("builds a deterministic report with ordered timeline", async () => {
+  const seedMocks = () => {
     prismaMock.clinics.findUnique.mockResolvedValue({ name: "Clinic One" });
     prismaMock.clients.findUnique.mockResolvedValue({
       id: "client-1",
@@ -102,6 +97,15 @@ describe("AerReportService", () => {
       reviewed_at: new Date("2026-01-26T10:00:00.000Z"),
       reviewed_by: { user_id: "therapist-1", full_name: "Therapist One" },
     });
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new AerReportService(prismaMock as any);
+  });
+
+  it("builds a deterministic report with ordered timeline", async () => {
+    seedMocks();
 
     const start = new Date("2026-01-01T00:00:00.000Z");
     const end = new Date("2026-01-31T23:59:59.999Z");
@@ -151,5 +155,40 @@ describe("AerReportService", () => {
 
     expect(report.noncompliance_escalations).toHaveLength(1);
     expect(report.noncompliance_escalations[0].type).toBe("reminder");
+  });
+
+  it("returns identical report outputs for identical inputs", async () => {
+    seedMocks();
+
+    const start = new Date("2026-01-01T00:00:00.000Z");
+    const end = new Date("2026-01-31T23:59:59.999Z");
+
+    const first = await service.generateAerReport(
+      "clinic-1",
+      "client-1",
+      start,
+      end,
+      undefined,
+      {
+        periodStartLabel: "2026-01-01",
+        periodEndLabel: "2026-01-31",
+        generatedAtOverride: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    );
+
+    const second = await service.generateAerReport(
+      "clinic-1",
+      "client-1",
+      start,
+      end,
+      undefined,
+      {
+        periodStartLabel: "2026-01-01",
+        periodEndLabel: "2026-01-31",
+        generatedAtOverride: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    );
+
+    expect(first).toEqual(second);
   });
 });

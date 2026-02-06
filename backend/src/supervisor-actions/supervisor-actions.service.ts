@@ -225,6 +225,7 @@ export class SupervisorActionsService {
     clinicId: string;
     escalationId: string;
     note?: string | null;
+    source?: string | null;
     ip?: string;
     userAgent?: string;
   }) {
@@ -276,6 +277,23 @@ export class SupervisorActionsService {
         note: updated.note,
       },
     });
+
+    if (params.source === "ai_draft") {
+      await this.audit.log({
+        userId: params.userId,
+        action: "ai.draft.apply",
+        entityType: "clinic",
+        entityId: params.clinicId,
+        ip: params.ip,
+        userAgent: params.userAgent,
+        metadata: {
+          clinicId: params.clinicId,
+          clientId: escalation.client_id,
+          escalationId: updated.id,
+          source: params.source,
+        },
+      });
+    }
 
     return {
       ok: true,

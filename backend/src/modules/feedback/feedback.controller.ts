@@ -12,7 +12,7 @@ export class FeedbackController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.therapist)
   @Post('create')
-  async create(@Body() dto: { responseId: string; text: string }, @Req() req: any) {
+  async create(@Body() dto: { responseId: string; text: string; source?: string | null }, @Req() req: any) {
     // your JwtAuthGuard puts user info on req.user; your invites controller uses req.user.userId
     return this.feedback.create(req.user.userId, dto);
   }

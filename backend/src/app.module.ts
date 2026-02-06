@@ -26,6 +26,8 @@ import { SupervisorWeeklyPacketModule } from './reports/supervisor-weekly-packet
 import { SupervisorActionsModule } from './supervisor-actions/supervisor-actions.module';
 import { AiSafetyGatewayModule } from './ai-safety-gateway/ai-safety-gateway.module';
 import { AiAssistModule } from './ai-assist/ai-assist.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
+import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { AiAssistModule } from './ai-assist/ai-assist.module';
     SupervisorActionsModule,
     AiSafetyGatewayModule,
     AiAssistModule,
+    MetricsModule,
+    ReviewQueueModule,
   ],
   controllers: [AppController],
   providers: [

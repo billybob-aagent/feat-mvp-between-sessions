@@ -169,7 +169,11 @@ export default function ProgressSummaryPage() {
       const payloadText = withProvenance(draftText, provenance);
       await apiFetch("/feedback/create", {
         method: "POST",
-        body: JSON.stringify({ responseId: result.apply_target_response_id, text: payloadText }),
+        body: JSON.stringify({
+          responseId: result.apply_target_response_id,
+          text: payloadText,
+          source: "ai_draft",
+        }),
         headers: { "Content-Type": "application/json" },
       });
       setDraftText(payloadText);

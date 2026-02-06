@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "../../modules/auth/jwt-auth.guard";
 import { RolesGuard } from "../../modules/auth/roles.guard";
 import { Roles } from "../../modules/auth/roles.decorator";
 import { UserRole } from "@prisma/client";
+import { AuditService } from "../../modules/audit/audit.service";
 import {
   buildDateRangeFromParts,
   dateOnlyPartsFromLocal,
@@ -22,7 +23,10 @@ function parseDateOnlyOrThrow(value: string) {
 
 @Controller("reports/aer")
 export class AerReportController {
-  constructor(private aerReport: AerReportService) {}
+  constructor(
+    private aerReport: AerReportService,
+    private audit: AuditService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
@@ -57,7 +61,7 @@ export class AerReportController {
 
     await this.aerReport.ensureClinicAccess(req.user.userId, req.user.role, clinicId);
 
-    return this.aerReport.generateAerReport(
+    const report = await this.aerReport.generateAerReport(
       clinicId,
       clientId,
       startRange.start,
@@ -68,5 +72,29 @@ export class AerReportController {
         periodEndLabel: endLabel,
       },
     );
+
+    try {
+      await this.audit.log({
+        userId: req.user.userId,
+        action: "aer.generate",
+        entityType: "clinic",
+        entityId: clinicId,
+        ip: req.ip,
+        userAgent: req.headers?.["user-agent"],
+        metadata: {
+          clinicId,
+          clientId,
+          format: "json",
+          periodStart: startLabel,
+          periodEnd: endLabel,
+          program: program?.trim() || null,
+        },
+      });
+    } catch (err) {
+      // Side-effect only: audit logging must never block report delivery.
+      console.warn("AER audit log failed (json).", err instanceof Error ? err.message : err);
+    }
+
+    return report;
   }
 }

@@ -15,6 +15,7 @@ import { JwtAuthGuard } from "../../../modules/auth/jwt-auth.guard";
 import { RolesGuard } from "../../../modules/auth/roles.guard";
 import { Roles } from "../../../modules/auth/roles.decorator";
 import { UserRole } from "@prisma/client";
+import { AuditService } from "../../../modules/audit/audit.service";
 import {
   buildDateRangeFromParts,
   dateOnlyPartsFromLocal,
@@ -36,6 +37,7 @@ export class AerPdfController {
   constructor(
     private aerPdf: AerPdfService,
     private aerReport: AerReportService,
+    private audit: AuditService,
   ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -86,6 +88,29 @@ export class AerPdfController {
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="AER_${reportId}.pdf"`);
+
+    try {
+      await this.audit.log({
+        userId: req.user.userId,
+        action: "aer.generate",
+        entityType: "clinic",
+        entityId: clinicId,
+        ip: req.ip,
+        userAgent: req.headers?.["user-agent"],
+        metadata: {
+          clinicId,
+          clientId,
+          format: "pdf",
+          reportId,
+          periodStart: startLabel,
+          periodEnd: endLabel,
+          program: program?.trim() || null,
+        },
+      });
+    } catch (err) {
+      // Side-effect only: audit logging must never block report delivery.
+      console.warn("AER audit log failed (pdf).", err instanceof Error ? err.message : err);
+    }
 
     return buffer;
   }

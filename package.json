@@ -10,6 +10,8 @@
     "lint": "node --check server.js",
     "e2e": "playwright test",
     "ingest:clinical-library": "npm --prefix backend run ingest:clinical-library",
+    "pilot:seed": "npm --prefix backend run pilot:seed",
+    "pilot:smoke": "bash scripts/smoke_pilot_seed.sh && bash scripts/smoke_pilot_metrics.sh",
     "gtm:pdf": "python3 scripts/build_gtm_pdf.py"
   },
   "keywords": [

@@ -367,6 +367,12 @@ export async function clinicianListAssignments(params: {
   );
 }
 
+// ---- Pilot Metrics ----
+export function pilotMetrics(params: { clinicId: string; start: string; end: string }) {
+  const qs = new URLSearchParams({ start: params.start, end: params.end });
+  return apiGet(`/metrics/pilot/${encodeURIComponent(params.clinicId)}?${qs.toString()}`);
+}
+
 // ---- Responses ----
 export async function clientSubmitResponse(dto: {
   assignmentId: string;
@@ -376,6 +382,32 @@ export async function clientSubmitResponse(dto: {
   voiceKey?: string;
 }) {
   return apiPost("/responses/submit", dto);
+}
+
+// ---- Review Queue ----
+export function reviewQueueList(params: {
+  clinicId?: string;
+  q?: string;
+  reviewed?: "all" | "reviewed" | "unreviewed";
+  flagged?: "all" | "flagged" | "unflagged";
+  limit?: number;
+}) {
+  return apiGet(
+    `/review-queue${buildQuery({
+      clinicId: params.clinicId ?? null,
+      q: params.q ?? null,
+      reviewed: params.reviewed ?? null,
+      flagged: params.flagged ?? null,
+      limit: params.limit ?? null,
+    })}`,
+  );
+}
+
+export function reviewQueueMarkReviewed(payload: {
+  responseIds: string[];
+  therapistNote?: string;
+}) {
+  return apiPost("/review-queue/mark-reviewed", payload);
 }
 
 export async function therapistListResponsesByAssignment(assignmentId: string) {
