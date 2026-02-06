@@ -8,6 +8,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "lint": "node --check server.js",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "e2e": "playwright test",
     "ingest:clinical-library": "npm --prefix backend run ingest:clinical-library",
     "pilot:seed": "npm --prefix backend run pilot:seed",
