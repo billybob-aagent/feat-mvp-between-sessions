@@ -177,7 +177,7 @@ export default function SupervisorSummaryPage() {
       const payloadText = withProvenance(draftText, provenance);
       await apiFetch(`/supervisor-actions/escalations/${encodeURIComponent(result.apply_target_escalation_id)}/note`, {
         method: "POST",
-        body: JSON.stringify({ clinicId, note: payloadText }),
+        body: JSON.stringify({ clinicId, note: payloadText, source: "ai_draft" }),
         headers: { "Content-Type": "application/json" },
       });
       setDraftText(payloadText);

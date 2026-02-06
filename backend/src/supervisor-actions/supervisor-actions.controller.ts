@@ -55,7 +55,7 @@ export class SupervisorActionsController {
   async updateNote(
     @Req() req: any,
     @Param("escalationId") escalationId: string,
-    @Body() dto: { clinicId?: string; note?: string | null },
+    @Body() dto: { clinicId?: string; note?: string | null; source?: string | null },
   ) {
     if (!dto.clinicId) {
       throw new BadRequestException("clinicId is required");
@@ -66,6 +66,7 @@ export class SupervisorActionsController {
       clinicId: dto.clinicId,
       escalationId,
       note: dto.note ?? null,
+      source: dto.source ?? null,
       ip: req.ip,
       userAgent: req.headers?.["user-agent"],
     });

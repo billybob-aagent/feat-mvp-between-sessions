@@ -44,6 +44,7 @@ const buildNav = (role?: string | null) => {
       { label: "Assignments", href: "/app/assignments" },
       { label: "Check-ins", href: "/app/checkins" },
       { label: "Responses", href: "/app/responses" },
+      { label: "Review Queue", href: "/app/review-queue" },
     ],
   };
 
@@ -82,6 +83,8 @@ const buildNav = (role?: string | null) => {
     items: [
       { label: "Staff", href: "/app/settings/clinic/staff" },
       { label: "Clients", href: "/app/settings/clinic/clients" },
+      { label: "Onboarding", href: "/app/onboarding" },
+      { label: "Pilot Metrics", href: "/app/pilot" },
       { label: "Clinic Settings", href: "/app/clinic" },
     ],
   };
@@ -143,6 +146,9 @@ const PAGE_LABELS: Record<string, string> = {
   escalations: "Escalations",
   "external-access": "External Access",
   ai: "AI Assist",
+  onboarding: "Onboarding",
+  pilot: "Pilot Metrics",
+  "review-queue": "Review Queue",
   settings: "Settings",
   "adherence-assist": "Adherence Assist",
   "assessment-assist": "Assessment Assist",
