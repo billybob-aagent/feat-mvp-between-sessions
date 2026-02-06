@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://between-sessions.org/standards/aer/AER_STANDARD_V1.schema.json",
+  "title": "Adherence Evidence Report (AER) v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "meta",
+    "context",
+    "prescribed_interventions",
+    "adherence_timeline",
+    "noncompliance_escalations",
+    "clinician_review",
+    "audit_integrity",
+    "not_available"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_type",
+        "version",
+        "generated_at",
+        "period",
+        "clinic_id",
+        "client_id",
+        "program",
+        "generated_by"
+      ],
+      "properties": {
+        "report_type": { "const": "AER" },
+        "version": { "const": "v1" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "period": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        },
+        "clinic_id": { "type": "string" },
+        "client_id": { "type": "string" },
+        "program": { "type": ["string", "null"] },
+        "generated_by": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "id"],
+          "properties": {
+            "type": { "const": "system" },
+            "id": { "const": "backend" }
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "description": "Forward-compatible extension container.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clinic", "client"],
+      "properties": {
+        "clinic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": { "type": ["string", "null"] }
+          }
+        },
+        "client": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["display_id"],
+          "properties": {
+            "display_id": { "type": ["string", "null"] }
+          }
+        },
+        "extensions": {
+          "type": "object",
+          "description": "Forward-compatible extension container.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "prescribed_interventions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assignment_id",
+          "title",
+          "library_source",
+          "assigned_by",
+          "assigned_at",
+          "due",
+          "completion_criteria",
+          "completed_at",
+          "reviewed_at",
+          "reviewed_by",
+          "evidence_refs",
+          "status_summary"
+        ],
+        "properties": {
+          "assignment_id": { "type": "string" },
+          "title": { "type": ["string", "null"] },
+          "library_source": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "item_id",
+                  "version_id",
+                  "version",
+                  "title",
+                  "slug",
+                  "content_type",
+                  "status"
+                ],
+                "properties": {
+                  "item_id": { "type": "string" },
+                  "version_id": { "type": ["string", "null"] },
+                  "version": { "type": ["integer", "null"], "minimum": 1 },
+                  "title": { "type": ["string", "null"] },
+                  "slug": { "type": ["string", "null"] },
+                  "content_type": { "type": ["string", "null"] },
+                  "status": { "const": "PUBLISHED" }
+                }
+              }
+            ]
+          },
+          "assigned_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["user_id", "name"],
+            "properties": {
+              "user_id": { "type": ["string", "null"] },
+              "name": { "type": ["string", "null"] }
+            }
+          },
+          "assigned_at": { "type": ["string", "null"], "format": "date-time" },
+          "due": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end"],
+            "properties": {
+              "start": { "type": ["string", "null"], "format": "date-time" },
+              "end": { "type": ["string", "null"], "format": "date-time" }
+            }
+          },
+          "completion_criteria": { "type": ["string", "null"] },
+          "completed_at": { "type": ["string", "null"], "format": "date-time" },
+          "reviewed_at": { "type": ["string", "null"], "format": "date-time" },
+          "reviewed_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["user_id", "name"],
+            "properties": {
+              "user_id": { "type": ["string", "null"] },
+              "name": { "type": ["string", "null"] }
+            }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "status_summary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["completed", "partial", "missed", "late"],
+            "properties": {
+              "completed": { "type": "integer", "minimum": 0 },
+              "partial": { "type": "integer", "minimum": 0 },
+              "missed": { "type": "integer", "minimum": 0 },
+              "late": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "adherence_timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ts", "type", "source", "ref", "details"],
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "assignment_completed",
+              "assignment_partial",
+              "assignment_missed",
+              "checkin",
+              "feedback",
+              "notification_sent",
+              "other"
+            ]
+          },
+          "source": { "type": "string", "enum": ["client", "system", "clinician"] },
+          "ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["assignment_id", "response_id"],
+            "properties": {
+              "assignment_id": { "type": ["string", "null"] },
+              "response_id": { "type": ["string", "null"] }
+            }
+          },
+          "details": {
+            "type": "object",
+            "description": "Free-form metadata; must not include PHI.",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "noncompliance_escalations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ts", "type", "channel", "details"],
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["reminder", "escalation"] },
+          "channel": { "type": "string", "enum": ["email", "sms", "inapp", "unknown"] },
+          "details": {
+            "type": "object",
+            "description": "Free-form metadata; must not include PHI.",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "clinician_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewed", "reviewed_at", "reviewed_by", "notes"],
+      "properties": {
+        "reviewed": { "type": "boolean" },
+        "reviewed_at": { "type": ["string", "null"], "format": "date-time" },
+        "reviewed_by": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["user_id", "name"],
+          "properties": {
+            "user_id": { "type": ["string", "null"] },
+            "name": { "type": ["string", "null"] }
+          }
+        },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "audit_integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["data_sources", "notes", "report_id", "hash"],
+      "properties": {
+        "data_sources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": "string" },
+        "report_id": {
+          "type": "string",
+          "pattern": "^AER-v1:[^:]+:[^:]+:\\d{4}-\\d{2}-\\d{2}:\\d{4}-\\d{2}-\\d{2}(:.+)?$"
+        },
+        "hash": { "type": ["string", "null"] },
+        "extensions": {
+          "type": "object",
+          "description": "Forward-compatible extension container.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "not_available": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

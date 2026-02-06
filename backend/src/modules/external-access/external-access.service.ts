@@ -235,6 +235,8 @@ export class ExternalAccessService {
         {
           periodStartLabel: period.startLabel,
           periodEndLabel: period.endLabel,
+          // Deterministic generated_at for external JSON tokens.
+          generatedAtOverride: period.end,
         },
       ),
     );

@@ -70,6 +70,8 @@ export class AerReportController {
       {
         periodStartLabel: startLabel,
         periodEndLabel: endLabel,
+        // Deterministic generated_at for JSON to match PDF behavior.
+        generatedAtOverride: endRange.end,
       },
     );
 
