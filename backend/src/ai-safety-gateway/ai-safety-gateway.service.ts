@@ -37,11 +37,21 @@ export class AiSafetyGatewayService {
     role: UserRole;
     purpose: AiPurpose;
     payload: Record<string, any>;
+    extraRedactionStats?: Partial<RedactionStats>;
   }): Promise<ProcessedRequest> {
     const inputString = JSON.stringify(params.payload) ?? "";
     const inputHash = hashString(inputString);
 
     const { sanitizedPayload, redactionStats } = this.redaction.redact(params.payload);
+    const mergedStats: RedactionStats = {
+      ...redactionStats,
+      emails: redactionStats.emails + (params.extraRedactionStats?.emails ?? 0),
+      phones: redactionStats.phones + (params.extraRedactionStats?.phones ?? 0),
+      urls: redactionStats.urls + (params.extraRedactionStats?.urls ?? 0),
+      addresses: redactionStats.addresses + (params.extraRedactionStats?.addresses ?? 0),
+      ssn: redactionStats.ssn + (params.extraRedactionStats?.ssn ?? 0),
+      names: redactionStats.names + (params.extraRedactionStats?.names ?? 0),
+    };
     const sanitizedString = JSON.stringify(sanitizedPayload) ?? "";
     const sanitizedHash = hashString(sanitizedString);
 
@@ -64,7 +74,7 @@ export class AiSafetyGatewayService {
         denial_reason: decision.denialReason ?? null,
         input_hash: inputHash,
         sanitized_hash: sanitizedHash,
-        redaction_stats: redactionStats as any,
+        redaction_stats: mergedStats as any,
       },
     });
 
@@ -72,7 +82,7 @@ export class AiSafetyGatewayService {
       allowed: decision.allowed,
       denialReason: decision.denialReason,
       sanitizedPayload: sanitizedPayload as Record<string, any>,
-      redactionStats,
+      redactionStats: mergedStats,
       sanitizedHash,
     };
   }
@@ -129,7 +139,7 @@ export class AiSafetyGatewayService {
     return {
       clinicId: params.clinicId,
       enabled: settings?.enabled ?? false,
-      allow_client_facing: false,
+      updatedAt: settings?.updated_at ? settings.updated_at.toISOString() : null,
     };
   }
 
@@ -162,7 +172,7 @@ export class AiSafetyGatewayService {
     return {
       clinicId: params.clinicId,
       enabled: settings.enabled,
-      allow_client_facing: false,
+      updatedAt: settings.updated_at ? settings.updated_at.toISOString() : null,
     };
   }
 }

@@ -1,3 +1,4 @@
+import { ForbiddenException } from "@nestjs/common";
 import { AiPurpose, AiRequestStatus, UserRole } from "@prisma/client";
 import { AiSafetyGatewayService } from "./ai-safety-gateway.service";
 import { RedactionService } from "./redaction/redaction.service";
@@ -102,5 +103,53 @@ describe("AiSafetyGatewayService", () => {
         }),
       }),
     );
+  });
+
+  it("allows therapist to read settings for their clinic", async () => {
+    prismaMock.clinics.findUnique.mockResolvedValue({ id: "clinic-1" });
+    prismaMock.clinic_memberships.findFirst.mockResolvedValue({ id: "mem-1" });
+    prismaMock.ai_clinic_settings.findUnique.mockResolvedValue({
+      enabled: true,
+      updated_at: new Date("2026-02-01T12:00:00.000Z"),
+    });
+
+    const result = await service.getSettings({
+      clinicId: "clinic-1",
+      userId: "user-1",
+      role: UserRole.therapist,
+    });
+
+    expect(result.enabled).toBe(true);
+    expect(result.updatedAt).toBe("2026-02-01T12:00:00.000Z");
+  });
+
+  it("denies therapist settings for other clinic", async () => {
+    prismaMock.clinics.findUnique.mockResolvedValue({ id: "clinic-1" });
+    prismaMock.clinic_memberships.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getSettings({
+        clinicId: "clinic-1",
+        userId: "user-1",
+        role: UserRole.therapist,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it("allows admin settings access without membership", async () => {
+    prismaMock.clinics.findUnique.mockResolvedValue({ id: "clinic-1" });
+    prismaMock.ai_clinic_settings.findUnique.mockResolvedValue({
+      enabled: false,
+      updated_at: new Date("2026-02-02T08:00:00.000Z"),
+    });
+
+    const result = await service.getSettings({
+      clinicId: "clinic-1",
+      userId: "user-1",
+      role: UserRole.admin,
+    });
+
+    expect(result.enabled).toBe(false);
+    expect(result.updatedAt).toBe("2026-02-02T08:00:00.000Z");
   });
 });

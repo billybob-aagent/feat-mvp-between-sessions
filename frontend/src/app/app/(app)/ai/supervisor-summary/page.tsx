@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { RequireRole } from "@/components/auth/RequireRole";
 import { PageLayout } from "@/components/page/PageLayout";
 import { FilterBar } from "@/components/page/FilterBar";
@@ -11,7 +10,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/api";
-import { useMe } from "@/lib/use-me";
+
+function toDateInput(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+type EscalationContext = {
+  id: string;
+  status: string;
+  reason: string;
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  resolvedAt: string | null;
+};
 
 type DraftResult = {
   assistant?: string;
@@ -25,21 +37,33 @@ type DraftResult = {
   purpose?: string;
   prompt_version?: string;
   generated_at?: string;
-  response_id?: string;
-  apply_target_response_id?: string | null;
+  escalation?: EscalationContext | null;
+  apply_target_escalation_id?: string | null;
 };
 
 type AiSettings = {
   enabled: boolean;
 };
 
-export default function AdherenceAssistPage() {
-  const searchParams = useSearchParams();
-  const { me } = useMe();
-  const isTherapist = me?.role === "therapist";
+type EvidencePreviewItem = {
+  assignment_title: string | null;
+  response_date: string;
+  reviewed_at: string;
+  completion_status: "reviewed";
+};
+
+type EvidencePreview = {
+  reviewed_response_count: number;
+  items: EvidencePreviewItem[];
+};
+
+export default function SupervisorSummaryPage() {
+  const today = useMemo(() => new Date(), []);
 
   const [clinicId, setClinicId] = useState("");
-  const [responseId, setResponseId] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [periodStart, setPeriodStart] = useState(toDateInput(new Date(today.getTime() - 30 * 86400000)));
+  const [periodEnd, setPeriodEnd] = useState(toDateInput(today));
 
   const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
   const [aiStatusError, setAiStatusError] = useState<string | null>(null);
@@ -50,6 +74,9 @@ export default function AdherenceAssistPage() {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyStatus, setApplyStatus] = useState<string | null>(null);
+  const [preview, setPreview] = useState<EvidencePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const provenance =
     result?.purpose && result?.generated_at && result?.prompt_version
@@ -62,13 +89,6 @@ export default function AdherenceAssistPage() {
     if (trimmed.includes(label)) return trimmed;
     return `${trimmed}\n\n---\n${label}`;
   };
-
-  useEffect(() => {
-    const qsClinic = searchParams.get("clinicId");
-    const qsResponse = searchParams.get("responseId");
-    if (qsClinic && !clinicId) setClinicId(qsClinic);
-    if (qsResponse && !responseId) setResponseId(qsResponse);
-  }, [searchParams, clinicId, responseId]);
 
   useEffect(() => {
     if (!clinicId) {
@@ -95,6 +115,38 @@ export default function AdherenceAssistPage() {
     };
   }, [clinicId]);
 
+  useEffect(() => {
+    if (!clinicId || !clientId || !periodStart || !periodEnd) {
+      setPreview(null);
+      setPreviewError(null);
+      return;
+    }
+    let cancelled = false;
+    async function loadPreview() {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const res = await apiFetch<EvidencePreview>("/ai/supervisor-summary/preview", {
+          method: "POST",
+          body: JSON.stringify({ clinicId, clientId, periodStart, periodEnd }),
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!cancelled) setPreview(res);
+      } catch (err) {
+        if (!cancelled) {
+          setPreview(null);
+          setPreviewError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    }
+    loadPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [clinicId, clientId, periodStart, periodEnd]);
+
   async function handleGenerate() {
     setLoading(true);
     setError(null);
@@ -102,9 +154,9 @@ export default function AdherenceAssistPage() {
     setResult(null);
     setDraftText("");
     try {
-      const res = await apiFetch<DraftResult>("/ai/adherence-feedback", {
+      const res = await apiFetch<DraftResult>("/ai/supervisor-summary", {
         method: "POST",
-        body: JSON.stringify({ clinicId, responseId }),
+        body: JSON.stringify({ clinicId, clientId, periodStart, periodEnd }),
         headers: { "Content-Type": "application/json" },
       });
       setResult(res);
@@ -117,19 +169,19 @@ export default function AdherenceAssistPage() {
   }
 
   async function handleApply() {
-    if (!result?.apply_target_response_id) return;
+    if (!result?.apply_target_escalation_id) return;
     if (!draftText.trim()) return;
     setApplying(true);
     setApplyStatus(null);
     try {
       const payloadText = withProvenance(draftText, provenance);
-      await apiFetch("/feedback/create", {
+      await apiFetch(`/supervisor-actions/escalations/${encodeURIComponent(result.apply_target_escalation_id)}/note`, {
         method: "POST",
-        body: JSON.stringify({ responseId: result.apply_target_response_id, text: payloadText }),
+        body: JSON.stringify({ clinicId, note: payloadText }),
         headers: { "Content-Type": "application/json" },
       });
       setDraftText(payloadText);
-      setApplyStatus("Draft saved to feedback.");
+      setApplyStatus("Draft saved to escalation note.");
     } catch (err) {
       setApplyStatus(err instanceof Error ? err.message : String(err));
     } finally {
@@ -137,18 +189,17 @@ export default function AdherenceAssistPage() {
     }
   }
 
-  const generateDisabled = !clinicId || !responseId || loading || aiEnabled === false;
+  const noEvidence = preview?.reviewed_response_count === 0;
+  const generateDisabled =
+    !clinicId || !clientId || loading || aiEnabled === false || previewLoading || noEvidence;
   const applyDisabled =
-    applying ||
-    !isTherapist ||
-    !draftText.trim() ||
-    !result?.apply_target_response_id;
+    applying || !draftText.trim() || !result?.apply_target_escalation_id;
 
   return (
-    <RequireRole roles={["CLINIC_ADMIN", "admin", "therapist"]}>
+    <RequireRole roles={["CLINIC_ADMIN", "admin"]}>
       <PageLayout
-        title="Adherence Feedback Draft"
-        subtitle="Draft feedback for a reviewed response (draft-only; clinician review required)."
+        title="Supervisor Summary Draft"
+        subtitle="Draft an oversight summary for supervisor review."
         actions={
           <Button variant="primary" onClick={handleGenerate} isLoading={loading} disabled={generateDisabled}>
             Generate draft
@@ -160,9 +211,17 @@ export default function AdherenceAssistPage() {
               <label className="text-label text-app-muted">Clinic ID</label>
               <Input value={clinicId} onChange={(e) => setClinicId(e.target.value)} placeholder="Clinic UUID" />
             </div>
-            <div className="min-w-[260px]">
-              <label className="text-label text-app-muted">Response ID</label>
-              <Input value={responseId} onChange={(e) => setResponseId(e.target.value)} placeholder="Reviewed response UUID" />
+            <div className="min-w-[220px]">
+              <label className="text-label text-app-muted">Client ID</label>
+              <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client UUID" />
+            </div>
+            <div className="min-w-[160px]">
+              <label className="text-label text-app-muted">Period start</label>
+              <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
+            </div>
+            <div className="min-w-[160px]">
+              <label className="text-label text-app-muted">Period end</label>
+              <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
             </div>
           </FilterBar>
         }
@@ -177,6 +236,43 @@ export default function AdherenceAssistPage() {
           <Alert variant="danger" title="AI settings unavailable">{aiStatusError}</Alert>
         )}
         {error && <Alert variant="danger" title="AI request failed">{error}</Alert>}
+        {previewError && (
+          <Alert variant="danger" title="Evidence preview failed">{previewError}</Alert>
+        )}
+        {previewLoading && <Alert variant="info">Loading evidence preview…</Alert>}
+        {noEvidence && (
+          <Alert variant="warning">No reviewed evidence found for this period.</Alert>
+        )}
+
+        {preview && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Evidence used</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-app-muted">
+              <div>
+                Reviewed responses:{" "}
+                <span className="text-app-text">{preview.reviewed_response_count}</span>
+              </div>
+              {preview.items.length > 0 ? (
+                <div className="space-y-2">
+                  {preview.items.map((item, idx) => (
+                    <div key={`${item.response_date}-${idx}`} className="rounded-lg bg-app-surface-2 p-3">
+                      <div className="text-app-text">
+                        {item.assignment_title || "Assignment"}
+                      </div>
+                      <div className="text-xs text-app-muted">
+                        Response {item.response_date} • Reviewed {item.reviewed_at}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>No reviewed responses in this period.</div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {!loading && !result && (
           <Alert variant="info">Draft output will appear after you generate a request.</Alert>
@@ -192,9 +288,25 @@ export default function AdherenceAssistPage() {
               {result.disclaimer || "Draft only. Clinician review required."}
             </Alert>
 
+            {result.escalation && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Escalation context</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-app-muted space-y-1">
+                  <div>ID: <span className="text-app-text">{result.escalation.id}</span></div>
+                  <div>Status: <span className="text-app-text">{result.escalation.status}</span></div>
+                  <div>Reason: <span className="text-app-text">{result.escalation.reason}</span></div>
+                  <div>Period: <span className="text-app-text">{result.escalation.periodStart} → {result.escalation.periodEnd}</span></div>
+                  <div>Created: <span className="text-app-text">{result.escalation.createdAt}</span></div>
+                  <div>Resolved: <span className="text-app-text">{result.escalation.resolvedAt ?? "—"}</span></div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle>Draft feedback</CardTitle>
+                <CardTitle>Draft summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Textarea
@@ -206,8 +318,8 @@ export default function AdherenceAssistPage() {
                   <Button variant="primary" onClick={handleApply} disabled={applyDisabled} isLoading={applying}>
                     Apply draft
                   </Button>
-                  {!isTherapist && (
-                    <span className="text-xs text-app-muted">Apply is therapist-only.</span>
+                  {!result.apply_target_escalation_id && (
+                    <span className="text-xs text-app-muted">No open escalation to attach.</span>
                   )}
                 </div>
                 {applyStatus && (

@@ -41,6 +41,7 @@ export type TherapistResponseListItemDto = {
   starredAt: string | null;
   lastAccessedAt: string | null;
   hasTherapistNote: boolean;
+  feedbackCount: number;
   promptPresent: boolean;
   recentResponses: ResponseTimelineItemDto[];
   client: {
@@ -268,6 +269,17 @@ export class ResponsesService {
     const ids = sliced.map((r) => r.id);
     const clientIds = Array.from(new Set(sliced.map((r) => r.client_id)));
 
+    const feedbackCounts = ids.length
+      ? await this.prisma.feedback.groupBy({
+          by: ["response_id"],
+          where: { response_id: { in: ids } },
+          _count: { response_id: true },
+        })
+      : [];
+    const feedbackMap = new Map(
+      feedbackCounts.map((row) => [row.response_id, row._count.response_id]),
+    );
+
     const accessRows = ids.length
       ? await this.prisma.audit_logs.findMany({
           where: {
@@ -334,6 +346,7 @@ export class ResponsesService {
       lastAccessedAt: lastAccessById.get(r.id) ?? null,
 
       hasTherapistNote: Boolean(r.therapist_note_cipher),
+      feedbackCount: feedbackMap.get(r.id) ?? 0,
       promptPresent: Boolean(r.prompt_cipher),
       recentResponses: timelineByClient.get(r.client_id) ?? [],
 

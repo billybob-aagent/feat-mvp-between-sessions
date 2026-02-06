@@ -13,7 +13,7 @@ import { apiFetch } from "@/lib/api";
 type AiSettings = {
   clinicId: string;
   enabled: boolean;
-  allow_client_facing: boolean;
+  updatedAt?: string | null;
 };
 
 export default function AiSettingsPage() {

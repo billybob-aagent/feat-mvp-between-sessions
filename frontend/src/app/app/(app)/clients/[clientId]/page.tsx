@@ -52,6 +52,7 @@ type ResponseRow = {
   createdAt: string | null;
   reviewedAt: string | null;
   flaggedAt: string | null;
+  feedbackCount?: number;
 };
 
 type AerReport = {
@@ -263,6 +264,7 @@ export default function ClientProfilePage() {
             createdAt: row.createdAt,
             reviewedAt: row.reviewedAt,
             flaggedAt: row.flaggedAt,
+            feedbackCount: row.feedbackCount ?? 0,
           })) ?? [];
         setResponses(rows);
         return;
@@ -281,7 +283,16 @@ export default function ClientProfilePage() {
             `/responses/therapist/assignment/${encodeURIComponent(assignment.id)}?clientId=${encodeURIComponent(
               clientId,
             )}&limit=50`,
-          )) as { items: Array<{ id: string; assignmentId: string; createdAt: string | null; reviewedAt: string | null; flaggedAt: string | null; }> };
+          )) as {
+            items: Array<{
+              id: string;
+              assignmentId: string;
+              createdAt: string | null;
+              reviewedAt: string | null;
+              flaggedAt: string | null;
+              feedbackCount?: number;
+            }>;
+          };
 
           for (const row of res.items ?? []) {
             collected.push({
@@ -291,6 +302,7 @@ export default function ClientProfilePage() {
               createdAt: row.createdAt,
               reviewedAt: row.reviewedAt,
               flaggedAt: row.flaggedAt,
+              feedbackCount: row.feedbackCount ?? 0,
             });
           }
         }
@@ -834,6 +846,7 @@ export default function ClientProfilePage() {
                           <TableHead>Status</TableHead>
                           <TableHead>Created</TableHead>
                           <TableHead>Flags</TableHead>
+                          <TableHead>Feedback</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -865,11 +878,19 @@ export default function ClientProfilePage() {
                             <TableCell className="text-xs text-app-muted">
                               {row.flaggedAt ? "Flagged" : "—"}
                             </TableCell>
+                            <TableCell className="text-xs text-app-muted">
+                              {row.feedbackCount ? `${row.feedbackCount} saved` : "—"}
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => router.push("/app/ai/adherence-assist")}
+                                onClick={() => {
+                                  const qs = new URLSearchParams();
+                                  if (clinicId) qs.set("clinicId", clinicId);
+                                  qs.set("responseId", row.id);
+                                  router.push(`/app/ai/adherence-assist?${qs.toString()}`);
+                                }}
                               >
                                 Draft feedback
                               </Button>

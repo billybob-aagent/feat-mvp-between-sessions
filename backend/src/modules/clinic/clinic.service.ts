@@ -118,6 +118,7 @@ export type ClinicResponseListItemDto = {
   flaggedAt: string | null;
   hasTherapistNote: boolean;
   voiceStorageKey: string | null;
+  feedbackCount: number;
 };
 
 export type ClinicCheckinListItemDto = {
@@ -1005,6 +1006,18 @@ export class ClinicService {
     const hasMore = rows.length > opts.limit;
     const sliced = hasMore ? rows.slice(0, opts.limit) : rows;
 
+    const responseIds = sliced.map((row) => row.id);
+    const feedbackCounts = responseIds.length
+      ? await this.prisma.feedback.groupBy({
+          by: ["response_id"],
+          where: { response_id: { in: responseIds } },
+          _count: { response_id: true },
+        })
+      : [];
+    const feedbackMap = new Map(
+      feedbackCounts.map((row) => [row.response_id, row._count.response_id]),
+    );
+
     const items: ClinicResponseListItemDto[] = sliced.map((row) => ({
       id: row.id,
       assignmentId: row.assignment_id,
@@ -1018,6 +1031,7 @@ export class ClinicService {
       flaggedAt: row.flagged_at ? row.flagged_at.toISOString() : null,
       hasTherapistNote: Boolean(row.therapist_note_cipher),
       voiceStorageKey: row.voice_storage_key ?? null,
+      feedbackCount: feedbackMap.get(row.id) ?? 0,
     }));
 
     return {

@@ -13,8 +13,18 @@ const cards = [
   },
   {
     title: "Adherence Assist",
-    description: "Draft evidence summaries for between-session adherence.",
+    description: "Draft feedback for reviewed responses.",
     href: "/app/ai/adherence-assist",
+  },
+  {
+    title: "Progress Summary",
+    description: "Draft neutral progress summaries from reviewed evidence.",
+    href: "/app/ai/progress-summary",
+  },
+  {
+    title: "Supervisor Summary",
+    description: "Draft oversight summaries with escalation context.",
+    href: "/app/ai/supervisor-summary",
   },
   {
     title: "Assessment Assist",
