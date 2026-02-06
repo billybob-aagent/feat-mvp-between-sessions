@@ -26,7 +26,8 @@
         "clinic_id",
         "client_id",
         "program",
-        "generated_by"
+        "generated_by",
+        "verification"
       ],
       "properties": {
         "report_type": { "const": "AER" },
@@ -57,6 +58,24 @@
           "properties": {
             "type": { "const": "system" },
             "id": { "const": "backend" }
+          }
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "standard",
+            "standard_version",
+            "schema_version",
+            "schema_sha256"
+          ],
+          "properties": {
+            "standard": { "const": "AER_STANDARD_V1" },
+            "standard_version": { "const": "1.1" },
+            "schema_version": { "const": "AER_STANDARD_V1" },
+            "schema_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "generator_commit": { "type": "string" },
+            "verification_tool_version": { "type": "string" }
           }
         },
         "extensions": {

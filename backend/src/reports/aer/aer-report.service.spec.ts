@@ -1,4 +1,7 @@
 import { AerReportService } from "./aer-report.service";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const prismaMock = {
   clinic_memberships: { findFirst: jest.fn() },
@@ -13,6 +16,15 @@ const prismaMock = {
 
 describe("AerReportService", () => {
   let service: AerReportService;
+
+  const schemaPath = path.resolve(
+    __dirname,
+    "../../../../docs/aer/AER_STANDARD_V1.schema.json",
+  );
+  const schemaSha = crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(schemaPath))
+    .digest("hex");
 
   const seedMocks = () => {
     prismaMock.clinics.findUnique.mockResolvedValue({ name: "Clinic One" });
@@ -190,5 +202,34 @@ describe("AerReportService", () => {
     );
 
     expect(first).toEqual(second);
+  });
+
+  it("includes verification metadata with schema hash", async () => {
+    seedMocks();
+
+    const start = new Date("2026-01-01T00:00:00.000Z");
+    const end = new Date("2026-01-31T23:59:59.999Z");
+
+    const report = await service.generateAerReport(
+      "clinic-1",
+      "client-1",
+      start,
+      end,
+      undefined,
+      {
+        periodStartLabel: "2026-01-01",
+        periodEndLabel: "2026-01-31",
+        generatedAtOverride: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    );
+
+    expect(report.meta.verification.standard).toBe("AER_STANDARD_V1");
+    expect(report.meta.verification.standard_version).toBe("1.1");
+    expect(report.meta.verification.schema_version).toBe("AER_STANDARD_V1");
+    expect(report.meta.verification.schema_sha256).toBe(schemaSha);
+    expect(report.meta.verification.generator_commit).toBe(
+      process.env.GIT_SHA?.trim() || "dev",
+    );
+    expect(report.meta.verification.verification_tool_version).toBe("verify_aer@1.1");
   });
 });

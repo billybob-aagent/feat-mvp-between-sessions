@@ -121,12 +121,10 @@ const curlFetch = (url: string) => {
   return body;
 };
 
-const validateSchema = (payload: unknown) => {
-  const schemaRaw = fs.readFileSync(schemaPath, "utf8");
-  const schema = JSON.parse(schemaRaw);
+const validateSchema = (payload: unknown, schema: unknown) => {
   const ajv = new Ajv({ allErrors: true, strict: true });
   addFormats(ajv);
-  const validate = ajv.compile(schema);
+  const validate = ajv.compile(schema as any);
   const ok = validate(payload);
   if (!ok) {
     const details = (validate.errors || [])
@@ -164,8 +162,28 @@ const run = async () => {
   const pdfHash1 = sha256(pdf1);
   const pdfHash2 = sha256(pdf2);
 
+  const schemaRaw = fs.readFileSync(schemaPath, "utf8");
+  const schema = JSON.parse(schemaRaw);
+  const schemaSha = sha256(Buffer.from(schemaRaw, "utf8"));
+
   const parsed = JSON.parse(json1);
-  validateSchema(parsed);
+  validateSchema(parsed, schema);
+
+  const verification = (parsed as any)?.meta?.verification;
+  if (!verification) {
+    fail("Missing meta.verification in AER JSON.");
+  }
+  const requiredKeys = ["standard", "standard_version", "schema_version", "schema_sha256"];
+  for (const key of requiredKeys) {
+    if (!verification[key]) {
+      fail(`meta.verification missing required key: ${key}`);
+    }
+  }
+  if (verification.schema_sha256 !== schemaSha) {
+    fail(
+      `schema_sha256 mismatch: ${verification.schema_sha256} vs ${schemaSha}`,
+    );
+  }
 
   if (jsonHash1 !== jsonHash2) {
     fail(`JSON hash mismatch: ${jsonHash1} vs ${jsonHash2}`);
@@ -177,6 +195,7 @@ const run = async () => {
 
   console.log(`JSON_SHA256=${jsonHash1}`);
   console.log(`PDF_SHA256=${pdfHash1}`);
+  console.log(`META_VERIFICATION=${JSON.stringify(verification)}`);
   console.log("PASS");
 };
 
