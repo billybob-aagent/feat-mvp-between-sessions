@@ -1,7 +1,35 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { PrismaService } from "../../modules/prisma/prisma.service";
 import { UserRole } from "@prisma/client";
 import { toDateOnlyStringLocal } from "./aer-report.utils";
+
+const AER_STANDARD = "AER_STANDARD_V1";
+const AER_STANDARD_VERSION = "1.1";
+const AER_SCHEMA_VERSION = "AER_STANDARD_V1";
+const VERIFICATION_TOOL_VERSION = "verify_aer@1.1";
+const GENERATOR_COMMIT = process.env.GIT_SHA?.trim() || "dev";
+const SCHEMA_RELATIVE_PATH = path.join("docs", "aer", "AER_STANDARD_V1.schema.json");
+
+const resolveSchemaPath = () => {
+  let current = process.cwd();
+  for (let i = 0; i < 6; i += 1) {
+    const candidate = path.join(current, SCHEMA_RELATIVE_PATH);
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return path.join(process.cwd(), SCHEMA_RELATIVE_PATH);
+};
+
+const SCHEMA_SHA256 = (() => {
+  const schemaPath = resolveSchemaPath();
+  const raw = fs.readFileSync(schemaPath);
+  return crypto.createHash("sha256").update(raw).digest("hex");
+})();
 
 type AerReport = {
   meta: {
@@ -13,6 +41,14 @@ type AerReport = {
     client_id: string;
     program: string | null;
     generated_by: { type: "system"; id: "backend" };
+    verification: {
+      standard: typeof AER_STANDARD;
+      standard_version: typeof AER_STANDARD_VERSION;
+      schema_version: typeof AER_SCHEMA_VERSION;
+      schema_sha256: string;
+      generator_commit: string;
+      verification_tool_version: string;
+    };
   };
   context: {
     clinic: { name: string | null };
@@ -479,6 +515,14 @@ export class AerReportService {
         client_id: clientId,
         program: program ?? null,
         generated_by: { type: "system", id: "backend" },
+        verification: {
+          standard: AER_STANDARD,
+          standard_version: AER_STANDARD_VERSION,
+          schema_version: AER_SCHEMA_VERSION,
+          schema_sha256: SCHEMA_SHA256,
+          generator_commit: GENERATOR_COMMIT,
+          verification_tool_version: VERIFICATION_TOOL_VERSION,
+        },
       },
       context: {
         clinic: { name: clinic?.name ?? null },

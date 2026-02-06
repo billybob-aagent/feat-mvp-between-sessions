@@ -1,7 +1,18 @@
 import { AerReportController } from "./aer-report.controller";
 
 const reportFixture = {
-  meta: { report_type: "AER", period: { start: "2026-01-01", end: "2026-01-31" } },
+  meta: {
+    report_type: "AER",
+    period: { start: "2026-01-01", end: "2026-01-31" },
+    verification: {
+      standard: "AER_STANDARD_V1",
+      standard_version: "1.1",
+      schema_version: "AER_STANDARD_V1",
+      schema_sha256: "deadbeef",
+      generator_commit: "dev",
+      verification_tool_version: "verify_aer@1.1",
+    },
+  },
   context: { clinic: { name: "Clinic" }, client: { display_id: null } },
   prescribed_interventions: [],
   adherence_timeline: [],

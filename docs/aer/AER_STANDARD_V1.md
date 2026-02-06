@@ -1,7 +1,7 @@
 # Adherence Evidence Report (AER) External Standard — v1
 
 **Status:** Authoritative, public, payer-facing standard for Between Sessions / Atlas Core.
-**Version:** v1 (see Version Governance).
+**Version:** v1.1 (see Version Governance).
 
 ## Purpose
 AER is a deterministic, audit-ready evidence artifact that reconstructs between-session adherence for a single client within a clinic over a defined period. It is designed to support payer review, utilization review (UR), and external audit processes without requiring access to internal systems.
@@ -71,6 +71,13 @@ See `AER_STANDARD_V1.schema.json` for the authoritative JSON Schema.
 - `client_id`: UUID string identifying the client.
 - `program`: string or null. If program filtering is unsupported, this is echoed and noted in `not_available`.
 - `generated_by`: fixed `{ type: "system", id: "backend" }`.
+- `verification`: verifier-first metadata for third-party validation.
+  - `standard`: fixed `AER_STANDARD_V1`.
+  - `standard_version`: `1.1`.
+  - `schema_version`: `AER_STANDARD_V1`.
+  - `schema_sha256`: SHA-256 of `AER_STANDARD_V1.schema.json`.
+  - `generator_commit`: build commit hash from `GIT_SHA` or `dev` fallback.
+  - `verification_tool_version`: verifier tool identifier (e.g., `verify_aer@1.1`).
 
 ### context
 - `clinic.name`: clinic display name (string or null).
@@ -140,6 +147,7 @@ AER v1 is intended to be independently verifiable using:
 ### Versioning Rules
 - `meta.version` is the canonical version identifier.
 - v1 uses `meta.version = "v1"` and the schema in `AER_STANDARD_V1.schema.json`.
+- v1.1 is a **minor** additive update introducing `meta.verification` without changing the v1 payload shape.
 
 ### Backwards Compatibility (Default)
 - New data MUST be introduced in **explicit extension containers** (e.g., `meta.extensions`, `context.extensions`, or `audit_integrity.extensions`) or in `details` fields. This avoids breaking v1 consumers.
