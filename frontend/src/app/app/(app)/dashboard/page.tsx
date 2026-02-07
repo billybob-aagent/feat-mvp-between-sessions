@@ -23,6 +23,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ClinicDashboard } from "@/lib/types/clinic";
 
 export default function DashboardPage() {
@@ -37,9 +38,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clinicId, setClinicId] = useLocalStorageState("bs.clinic.id", "");
-
-  const aerStart = useLocalStorageState("bs.aer.start", "")[0];
-  const aerEnd = useLocalStorageState("bs.aer.end", "")[0];
 
   const [inviteTherapistOpen, setInviteTherapistOpen] = useState(false);
   const [inviteClientOpen, setInviteClientOpen] = useState(false);
@@ -102,7 +100,7 @@ export default function DashboardPage() {
       setInviteError("Select a clinic context first.");
       return;
     }
-      setInviteError(null);
+    setInviteError(null);
     setInviteStatus(null);
     setTherapistInviteToken(null);
     setTherapistInviteCopied(null);
@@ -154,11 +152,6 @@ export default function DashboardPage() {
     }
   }
 
-  const aerRangeLabel = useMemo(() => {
-    if (aerStart && aerEnd) return `${aerStart} → ${aerEnd}`;
-    return "Last 30 days";
-  }, [aerStart, aerEnd]);
-
   const clientQuery = selectedClientId
     ? `?clientId=${encodeURIComponent(selectedClientId)}`
     : "";
@@ -198,33 +191,25 @@ export default function DashboardPage() {
     );
   };
 
+  const activity = useMemo(
+    () => [
+      {
+        id: "a-1",
+        type: "assignment",
+        summary: "Assignment activity will appear here.",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    [],
+  );
+
   return (
     <RequireRole roles={["CLINIC_ADMIN", "admin", "therapist"]}>
       <PageLayout
         title="Dashboard"
         subtitle="Clinic-level operational overview and report entry points."
         actions={
-          canManageClinic ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {maybeTooltip(
-                clientRequiredTitle,
-                !selectedClientId,
-                <Button
-                  variant="primary"
-                  onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                  disabled={!selectedClientId}
-                >
-                  Generate AER
-                </Button>,
-              )}
-              <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
-                Review Queue
-              </Button>
-              <Button variant="secondary" onClick={() => router.push("/app/reports/submission")}>
-                Submission Bundle
-              </Button>
-            </div>
-          ) : (
+          canManageClinic ? undefined : (
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="secondary" onClick={() => router.push("/app/therapist/dashboard")}>
                 Therapist dashboard
@@ -243,28 +228,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {!loading && data && (
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatCard label="Therapists" value={data.counts.therapists} />
-            <StatCard label="Clients" value={data.counts.clients} />
-            <StatCard label="Assignments" value={data.counts.assignments} />
-            <StatCard label="Responses (7d)" value={data.counts.responses} />
-          </div>
-        )}
-
-        {!loading && !data && (
-          <Alert variant="info" title="No clinic metrics loaded">
-            For therapist roles, this dashboard is read-only. Use the Reports and AI Assist
-            sections to work with client data.
-          </Alert>
-        )}
-
-        {!loading && data && data.counts.therapists === 0 && data.counts.clients === 0 && (
-          <Alert variant="info" title="Invite a therapist or client to start">
-            Your clinic is ready. Invite staff or clients to begin capturing between-session evidence.
-          </Alert>
-        )}
-
         {inviteError && (
           <Alert variant="danger" title="Invite failed">
             {inviteError}
@@ -276,196 +239,141 @@ export default function DashboardPage() {
           </Alert>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-          {canManageClinic && (
-            <Card className="xl:col-span-4">
-              <CardHeader>
-                <CardTitle>Clinic admin actions</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-2">
-                {maybeTooltip(
-                  !canInvite ? "Select a clinic context first." : undefined,
-                  !canInvite,
-                  <Button
-                    variant="primary"
-                    onClick={() => setInviteTherapistOpen(true)}
-                    disabled={!canInvite}
-                  >
-                    Invite Therapist
-                  </Button>,
-                )}
-                {maybeTooltip(
-                  !canInvite ? "Select a clinic context first." : undefined,
-                  !canInvite,
-                  <Button
-                    variant="secondary"
-                    onClick={() => setInviteClientOpen(true)}
-                    disabled={!canInvite}
-                  >
-                    Invite Client
-                  </Button>,
-                )}
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push(isAdmin ? "/app/admin/library" : "/app/library")}
-                >
-                  Add Library Content
-                </Button>
-                <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
-                  Review Queue
-                </Button>
-                {maybeTooltip(
-                  clientRequiredTitle,
-                  !selectedClientId,
-                  <Button
-                    variant="secondary"
-                    onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                    disabled={!selectedClientId}
-                  >
-                    Generate AER
-                  </Button>,
-                )}
-                {maybeTooltip(
-                  clientRequiredTitle,
-                  !selectedClientId,
-                  <Button
-                    variant="secondary"
-                    onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
-                    disabled={!selectedClientId}
-                  >
-                    Download Submission Bundle
-                  </Button>,
-                )}
-              </CardContent>
-            </Card>
-          )}
+        {!loading && !data && (
+          <Alert variant="info" title="No clinic metrics loaded">
+            For therapist roles, this dashboard is read-only. Use the Reports and AI Assist
+            sections to work with client data.
+          </Alert>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>AER snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-app-muted">
-              <div>Default range: {aerRangeLabel}</div>
-              <div>Clinic context: {clinicId || "Set on Reports pages"}</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                  href="/app/reports/aer"
-                >
-                  Generate AER
-                </Link>
-                <Link
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                  href="/app/reports/rollup"
-                >
-                  View rollup
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+        {!loading && data && (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <StatCard label="Therapists" value={data.counts.therapists} />
+              <StatCard label="Clients" value={data.counts.clients} />
+              <StatCard label="Assignments" value={data.counts.assignments} />
+              <StatCard label="Responses (7d)" value={data.counts.responses} />
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Work queue</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-app-muted">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between">
-                  <span>Needs review</span>
-                  <span className="text-app-text font-medium">{data?.counts.responses ?? "—"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Overdue check-ins</span>
-                  <span className="text-app-text font-medium">—</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Open escalations</span>
-                  <span className="text-app-text font-medium">—</span>
-                </div>
-              </div>
-              <div className="text-xs text-app-muted">
-                Drill into Clients and Escalations for queue-level detail.
-              </div>
-            </CardContent>
-          </Card>
+            {data.counts.therapists === 0 && data.counts.clients === 0 && (
+              <Alert variant="info" title="Invite a therapist or client to start">
+                Your clinic is ready. Invite staff or clients to begin capturing between-session evidence.
+              </Alert>
+            )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Between Sessions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-app-muted">
-              <p>Clients, assignments, check-ins, and response review.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link className="text-app-accent text-xs" href="/app/clients">
-                  Clients
-                </Link>
-                <Link className="text-app-accent text-xs" href="/app/assignments">
-                  Assignments
-                </Link>
-                <Link className="text-app-accent text-xs" href="/app/responses">
-                  Responses
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <tr>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Summary</TableHead>
+                        <TableHead>When</TableHead>
+                      </tr>
+                    </TableHeader>
+                    <TableBody>
+                      {activity.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.type}</TableCell>
+                          <TableCell>{item.summary}</TableCell>
+                          <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Supervisor workflow</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-app-muted">
-              <p>Weekly packet and escalation visibility.</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Link className="text-app-accent text-xs" href="/app/reports/supervisor-weekly">
-                  Weekly packet
-                </Link>
-                <Link className="text-app-accent text-xs" href="/app/escalations">
-                  Escalations
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {canManageClinic && (
-            <Card className="xl:col-span-4">
-              <CardHeader>
-                <CardTitle>Operations</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-2 text-sm text-app-muted">
-                <Link
-                  href="/app/clinic/therapists"
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                >
-                  Therapists directory
-                </Link>
-                <Link
-                  href="/app/clients"
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                >
-                  Clients
-                </Link>
-                <Link
-                  href="/app/escalations"
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                >
-                  Escalations
-                </Link>
-                <Link
-                  href="/app/reports/supervisor-weekly"
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                >
-                  Supervisor Weekly
-                </Link>
-                <Link
-                  href="/app/external-access"
-                  className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-1.5 text-xs text-app-text hover:bg-app-surface-2"
-                >
-                  External Access
-                </Link>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {canManageClinic && (
+                    <div className="flex flex-wrap gap-2">
+                      {maybeTooltip(
+                        !canInvite ? "Select a clinic context first." : undefined,
+                        !canInvite,
+                        <Button
+                          variant="primary"
+                          onClick={() => setInviteTherapistOpen(true)}
+                          disabled={!canInvite}
+                        >
+                          Invite Therapist
+                        </Button>,
+                      )}
+                      {maybeTooltip(
+                        !canInvite ? "Select a clinic context first." : undefined,
+                        !canInvite,
+                        <Button
+                          variant="secondary"
+                          onClick={() => setInviteClientOpen(true)}
+                          disabled={!canInvite}
+                        >
+                          Invite Client
+                        </Button>,
+                      )}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(isAdmin ? "/app/admin/library" : "/app/library")}
+                    >
+                      Add Library Content
+                    </Button>
+                    <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
+                      Review Queue
+                    </Button>
+                    {maybeTooltip(
+                      clientRequiredTitle,
+                      !selectedClientId,
+                      <Button
+                        variant="secondary"
+                        onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                        disabled={!selectedClientId}
+                      >
+                        Generate AER
+                      </Button>,
+                    )}
+                    {maybeTooltip(
+                      clientRequiredTitle,
+                      !selectedClientId,
+                      <Button
+                        variant="secondary"
+                        onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
+                        disabled={!selectedClientId}
+                      >
+                        Download Submission Bundle
+                      </Button>,
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-sm text-app-muted">
+                    <Link className="text-app-accent" href="/app/clinic/therapists">
+                      Therapists directory
+                    </Link>
+                    <Link className="text-app-accent" href="/app/clients">
+                      Clients
+                    </Link>
+                    <Link className="text-app-accent" href="/app/escalations">
+                      Escalations
+                    </Link>
+                    <Link className="text-app-accent" href="/app/reports/supervisor-weekly">
+                      Supervisor Weekly
+                    </Link>
+                    <Link className="text-app-accent" href="/app/external-access">
+                      External Access
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         <Dialog
           open={inviteTherapistOpen}
