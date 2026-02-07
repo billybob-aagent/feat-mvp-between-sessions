@@ -49,9 +49,12 @@ export default function DashboardPage() {
   const [therapistEmail, setTherapistEmail] = useState("");
   const [therapistName, setTherapistName] = useState("");
   const [therapistInviteToken, setTherapistInviteToken] = useState<string | null>(null);
+  const [therapistInviteCopied, setTherapistInviteCopied] = useState<string | null>(null);
 
   const [clientEmail, setClientEmail] = useState("");
   const [clientTherapistId, setClientTherapistId] = useState("");
+  const [clientInviteToken, setClientInviteToken] = useState<string | null>(null);
+  const [clientInviteCopied, setClientInviteCopied] = useState<string | null>(null);
   const [therapistOptions, setTherapistOptions] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -99,9 +102,10 @@ export default function DashboardPage() {
       setInviteError("Select a clinic context first.");
       return;
     }
-    setInviteError(null);
+      setInviteError(null);
     setInviteStatus(null);
     setTherapistInviteToken(null);
+    setTherapistInviteCopied(null);
     try {
       const payload: { email: string; fullName?: string; clinicId?: string } = {
         email: therapistEmail.trim(),
@@ -129,13 +133,16 @@ export default function DashboardPage() {
     }
     setInviteError(null);
     setInviteStatus(null);
+    setClientInviteToken(null);
+    setClientInviteCopied(null);
     try {
       const payload: { email: string; therapistId?: string; clinicId?: string } = {
         email: clientEmail.trim(),
         therapistId: clientTherapistId || undefined,
       };
       if (isAdmin && clinicId) payload.clinicId = clinicId;
-      await clinicInviteClient(payload);
+      const res = (await clinicInviteClient(payload)) as { token?: string; expires_at?: string };
+      if (res?.token) setClientInviteToken(res.token);
       setInviteStatus("Client invite created.");
       setClientEmail("");
       setClientTherapistId("");
@@ -158,6 +165,29 @@ export default function DashboardPage() {
 
   const clientRequiredTitle = selectedClientId ? undefined : "Select a client first.";
   const canInvite = canManageClinic && (!isAdmin || !!clinicId);
+  const therapistInviteLink = useMemo(() => {
+    if (!therapistInviteToken) return null;
+    if (typeof window === "undefined") return null;
+    return `${window.location.origin}/auth/accept-clinic-invite?token=${encodeURIComponent(therapistInviteToken)}`;
+  }, [therapistInviteToken]);
+
+  const clientInviteLink = useMemo(() => {
+    if (!clientInviteToken) return null;
+    if (typeof window === "undefined") return null;
+    return `${window.location.origin}/auth/accept-invite?token=${encodeURIComponent(clientInviteToken)}`;
+  }, [clientInviteToken]);
+
+  async function copyInvite(link: string | null, setter: (value: string | null) => void) {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setter("Copied!");
+      setTimeout(() => setter(null), 1500);
+    } catch {
+      setter("Could not copy.");
+      setTimeout(() => setter(null), 2000);
+    }
+  }
 
   const maybeTooltip = (label: string | undefined, disabled: boolean, node: React.ReactNode) => {
     if (!disabled || !label) return node;
@@ -466,7 +496,22 @@ export default function DashboardPage() {
             />
             {therapistInviteToken && (
               <div className="rounded-md border border-app-border bg-app-surface-2 p-3 text-xs text-app-muted break-all">
-                Invite token: {therapistInviteToken}
+                <div className="font-medium text-app-text">Invite link</div>
+                {therapistInviteLink ? (
+                  <a className="text-app-accent hover:underline" href={therapistInviteLink}>
+                    {therapistInviteLink}
+                  </a>
+                ) : (
+                  <div>Invite token: {therapistInviteToken}</div>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={() => copyInvite(therapistInviteLink, setTherapistInviteCopied)}>
+                    Copy link
+                  </Button>
+                  {therapistInviteCopied && (
+                    <span className="text-xs text-app-muted">{therapistInviteCopied}</span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -508,6 +553,26 @@ export default function DashboardPage() {
                 ))}
               </Select>
             </div>
+            {clientInviteToken && (
+              <div className="rounded-md border border-app-border bg-app-surface-2 p-3 text-xs text-app-muted break-all">
+                <div className="font-medium text-app-text">Invite link</div>
+                {clientInviteLink ? (
+                  <a className="text-app-accent hover:underline" href={clientInviteLink}>
+                    {clientInviteLink}
+                  </a>
+                ) : (
+                  <div>Invite token: {clientInviteToken}</div>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={() => copyInvite(clientInviteLink, setClientInviteCopied)}>
+                    Copy link
+                  </Button>
+                  {clientInviteCopied && (
+                    <span className="text-xs text-app-muted">{clientInviteCopied}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Dialog>
       </PageLayout>
