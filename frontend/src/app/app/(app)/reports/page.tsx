@@ -21,6 +21,11 @@ const cards = [
     description: "Weekly packet with top risk clients and escalation overlay.",
     href: "/app/reports/supervisor-weekly",
   },
+  {
+    title: "Submission Bundle (UR)",
+    description: "Package AER and related artifacts with payer-safe language.",
+    href: "/app/reports/submission",
+  },
 ];
 
 export default function ReportsIndexPage() {

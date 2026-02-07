@@ -57,6 +57,7 @@ const buildNav = (role?: string | null) => {
       { label: "AER (Client)", href: "/app/reports/aer" },
       { label: "AER Rollup", href: "/app/reports/rollup" },
       { label: "Supervisor Weekly", href: "/app/reports/supervisor-weekly" },
+      { label: "Submission Bundle", href: "/app/reports/submission" },
     ],
   };
 
@@ -146,6 +147,7 @@ const PAGE_LABELS: Record<string, string> = {
   aer: "AER",
   rollup: "AER Rollup",
   "supervisor-weekly": "Weekly Packet",
+  submission: "Submission Bundle",
   escalations: "Escalations",
   "external-access": "External Access",
   ai: "AI Assist",
