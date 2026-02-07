@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { Breadcrumbs } from "@/components/page/Breadcrumbs";
 import { NotAuthorized } from "@/components/page/NotAuthorized";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const buildNav = (role?: string | null) => {
   const base = [
@@ -419,16 +420,24 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
                         ))}
                       </Select>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearClientSelection}
-                      disabled={!selectedClientId}
-                      title={selectedClientId ? "Clear client selection" : "No client selected"}
-                    >
-                      Clear
-                    </Button>
+                    {selectedClientId ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearClientSelection}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <Tooltip label="No client selected">
+                        <span className="inline-flex">
+                          <Button type="button" variant="ghost" size="sm" disabled>
+                            Clear
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    )}
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-xs text-app-muted">

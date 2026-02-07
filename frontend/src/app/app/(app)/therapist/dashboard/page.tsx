@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type Prompt = { id: string; title: string; content: string };
 
@@ -67,6 +68,15 @@ export default function TherapistDashboard() {
     ? `?clientId=${encodeURIComponent(selectedClientId)}`
     : "";
   const clientRequiredTitle = selectedClientId ? undefined : "Select a client first.";
+
+  const maybeTooltip = (label: string | undefined, disabled: boolean, node: React.ReactNode) => {
+    if (!disabled || !label) return node;
+    return (
+      <Tooltip label={label}>
+        <span className="inline-flex">{node}</span>
+      </Tooltip>
+    );
+  };
 
   async function loadPrompts() {
     try {
@@ -232,56 +242,71 @@ export default function TherapistDashboard() {
             <div className="text-sm text-app-muted">Select a client to begin.</div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="primary"
-              onClick={() => router.push(`/app/library${clientQuery}`)}
-              disabled={!selectedClientId}
-              title={clientRequiredTitle}
-            >
-              Assign from Library
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
-              }
-              disabled={!selectedClientId}
-              title={clientRequiredTitle}
-            >
-              Send Check-in
-            </Button>
+            {maybeTooltip(
+              clientRequiredTitle,
+              !selectedClientId,
+              <Button
+                variant="primary"
+                onClick={() => router.push(`/app/library${clientQuery}`)}
+                disabled={!selectedClientId}
+              >
+                Assign from Library
+              </Button>,
+            )}
+            {maybeTooltip(
+              clientRequiredTitle,
+              !selectedClientId,
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+                }
+                disabled={!selectedClientId}
+              >
+                Send Check-in
+              </Button>,
+            )}
             <Button
               variant="secondary"
               onClick={() => router.push(`/app/review-queue${clientQuery}`)}
             >
               Review Queue
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => router.push(`/app/ai/adherence-assist${clientQuery}`)}
-              disabled={!selectedClientId}
-              title={clientRequiredTitle}
-            >
-              Draft Feedback (AI)
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-              disabled={!selectedClientId}
-              title={clientRequiredTitle}
-            >
-              Generate AER
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
-              }
-              disabled={!selectedClientId}
-              title={clientRequiredTitle}
-            >
-              View Client Profile
-            </Button>
+            {maybeTooltip(
+              clientRequiredTitle,
+              !selectedClientId,
+              <Button
+                variant="secondary"
+                onClick={() => router.push(`/app/ai/adherence-assist${clientQuery}`)}
+                disabled={!selectedClientId}
+              >
+                Draft Feedback (AI)
+              </Button>,
+            )}
+            {maybeTooltip(
+              clientRequiredTitle,
+              !selectedClientId,
+              <Button
+                variant="secondary"
+                onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                disabled={!selectedClientId}
+              >
+                Generate AER
+              </Button>,
+            )}
+            {maybeTooltip(
+              clientRequiredTitle,
+              !selectedClientId,
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+                }
+                disabled={!selectedClientId}
+              >
+                View Client Profile
+              </Button>,
+            )}
           </div>
         </CardContent>
       </Card>

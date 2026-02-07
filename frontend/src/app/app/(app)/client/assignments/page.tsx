@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type ClientAssignmentRow = {
   id: string;
@@ -108,16 +109,24 @@ export default function ClientAssignmentsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* TODO: wire daily check-in flow to POST /api/v1/checkins/submit */}
-          <Button variant="secondary" disabled title="Coming soon">
-            Start Today&apos;s Check-in
-          </Button>
+          <Tooltip label="Coming soon">
+            <span className="inline-flex">
+              <Button variant="secondary" disabled>
+                Start Today&apos;s Check-in
+              </Button>
+            </span>
+          </Tooltip>
           <Button variant="secondary" onClick={() => router.push("/app/client/assignments")}>
             View Active Assignments
           </Button>
           {/* TODO: add client feedback endpoint (GET /api/v1/feedback?clientId=...) */}
-          <Button variant="secondary" disabled title="Coming soon">
-            View Feedback
-          </Button>
+          <Tooltip label="Coming soon">
+            <span className="inline-flex">
+              <Button variant="secondary" disabled>
+                View Feedback
+              </Button>
+            </span>
+          </Tooltip>
         </div>
       </div>
 

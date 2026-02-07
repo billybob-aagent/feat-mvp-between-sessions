@@ -22,6 +22,7 @@ import { useSelectedClientId } from "@/lib/client-selection";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { ClinicDashboard } from "@/lib/types/clinic";
 
 export default function DashboardPage() {
@@ -158,6 +159,15 @@ export default function DashboardPage() {
   const clientRequiredTitle = selectedClientId ? undefined : "Select a client first.";
   const canInvite = canManageClinic && (!isAdmin || !!clinicId);
 
+  const maybeTooltip = (label: string | undefined, disabled: boolean, node: React.ReactNode) => {
+    if (!disabled || !label) return node;
+    return (
+      <Tooltip label={label}>
+        <span className="inline-flex">{node}</span>
+      </Tooltip>
+    );
+  };
+
   return (
     <RequireRole roles={["CLINIC_ADMIN", "admin", "therapist"]}>
       <PageLayout
@@ -166,14 +176,17 @@ export default function DashboardPage() {
         actions={
           canManageClinic ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="primary"
-                onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                disabled={!selectedClientId}
-                title={clientRequiredTitle}
-              >
-                Generate AER
-              </Button>
+              {maybeTooltip(
+                clientRequiredTitle,
+                !selectedClientId,
+                <Button
+                  variant="primary"
+                  onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                  disabled={!selectedClientId}
+                >
+                  Generate AER
+                </Button>,
+              )}
               <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
                 Review Queue
               </Button>
@@ -240,22 +253,28 @@ export default function DashboardPage() {
                 <CardTitle>Clinic admin actions</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="primary"
-                  onClick={() => setInviteTherapistOpen(true)}
-                  disabled={!canInvite}
-                  title={!canInvite ? "Select a clinic context first." : undefined}
-                >
-                  Invite Therapist
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setInviteClientOpen(true)}
-                  disabled={!canInvite}
-                  title={!canInvite ? "Select a clinic context first." : undefined}
-                >
-                  Invite Client
-                </Button>
+                {maybeTooltip(
+                  !canInvite ? "Select a clinic context first." : undefined,
+                  !canInvite,
+                  <Button
+                    variant="primary"
+                    onClick={() => setInviteTherapistOpen(true)}
+                    disabled={!canInvite}
+                  >
+                    Invite Therapist
+                  </Button>,
+                )}
+                {maybeTooltip(
+                  !canInvite ? "Select a clinic context first." : undefined,
+                  !canInvite,
+                  <Button
+                    variant="secondary"
+                    onClick={() => setInviteClientOpen(true)}
+                    disabled={!canInvite}
+                  >
+                    Invite Client
+                  </Button>,
+                )}
                 <Button
                   variant="secondary"
                   onClick={() => router.push(isAdmin ? "/app/admin/library" : "/app/library")}
@@ -265,22 +284,28 @@ export default function DashboardPage() {
                 <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
                   Review Queue
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                  disabled={!selectedClientId}
-                  title={clientRequiredTitle}
-                >
-                  Generate AER
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
-                  disabled={!selectedClientId}
-                  title={clientRequiredTitle}
-                >
-                  Download Submission Bundle
-                </Button>
+                {maybeTooltip(
+                  clientRequiredTitle,
+                  !selectedClientId,
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                    disabled={!selectedClientId}
+                  >
+                    Generate AER
+                  </Button>,
+                )}
+                {maybeTooltip(
+                  clientRequiredTitle,
+                  !selectedClientId,
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
+                    disabled={!selectedClientId}
+                  >
+                    Download Submission Bundle
+                  </Button>,
+                )}
               </CardContent>
             </Card>
           )}
