@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { useSelectedClientId } from "@/lib/client-selection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +34,8 @@ type ActivityItem = {
 };
 
 export default function TherapistDashboard() {
+  const router = useRouter();
+  const { clientId: selectedClientId } = useSelectedClientId();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [clients, setClients] = useState<ClientItem[]>([]);
 
@@ -58,6 +62,11 @@ export default function TherapistDashboard() {
   }, [inviteData]);
 
   const activity: ActivityItem[] = [];
+
+  const clientQuery = selectedClientId
+    ? `?clientId=${encodeURIComponent(selectedClientId)}`
+    : "";
+  const clientRequiredTitle = selectedClientId ? undefined : "Select a client first.";
 
   async function loadPrompts() {
     try {
@@ -213,6 +222,69 @@ export default function TherapistDashboard() {
           </Link>
         </div>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Quick actions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {!selectedClientId && (
+            <div className="text-sm text-app-muted">Select a client to begin.</div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
+              onClick={() => router.push(`/app/library${clientQuery}`)}
+              disabled={!selectedClientId}
+              title={clientRequiredTitle}
+            >
+              Assign from Library
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+              }
+              disabled={!selectedClientId}
+              title={clientRequiredTitle}
+            >
+              Send Check-in
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => router.push(`/app/review-queue${clientQuery}`)}
+            >
+              Review Queue
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => router.push(`/app/ai/adherence-assist${clientQuery}`)}
+              disabled={!selectedClientId}
+              title={clientRequiredTitle}
+            >
+              Draft Feedback (AI)
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+              disabled={!selectedClientId}
+              title={clientRequiredTitle}
+            >
+              Generate AER
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+              }
+              disabled={!selectedClientId}
+              title={clientRequiredTitle}
+            >
+              View Client Profile
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {status && (
         <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>

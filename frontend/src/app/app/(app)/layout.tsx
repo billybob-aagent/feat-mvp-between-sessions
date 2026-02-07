@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { clinicListClients } from "@/lib/clinic-api";
 import { setMeCache, useMe } from "@/lib/use-me";
+import { useSelectedClientId } from "@/lib/client-selection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -181,6 +183,15 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   const { me, loading } = useMe();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { clientId: selectedClientId, clinicId, setStoredClientId } = useSelectedClientId();
+
+  const [clientOptions, setClientOptions] = useState<{ id: string; label: string }[]>([]);
+  const [clientLoading, setClientLoading] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  const role = me?.role ?? null;
+  const showClientSelector = role === "therapist" || role === "CLINIC_ADMIN" || role === "admin";
+  const requiresClinicContext = role === "admin" && !clinicId;
 
   async function logout() {
     try {
@@ -203,6 +214,56 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
       : "text-app-muted hover:text-app-text";
   }
 
+  useEffect(() => {
+    if (!showClientSelector) return;
+    if (requiresClinicContext) {
+      setClientOptions([]);
+      setClientError("Clinic context required.");
+      return;
+    }
+
+    let active = true;
+    setClientLoading(true);
+    setClientError(null);
+
+    const load = async () => {
+      try {
+        if (role === "therapist") {
+          const data = (await apiFetch("/clients/mine")) as { id: string; fullName: string; email: string }[];
+          if (!active) return;
+          const options = (Array.isArray(data) ? data : []).map((client) => ({
+            id: client.id,
+            label: client.fullName || client.email || client.id,
+          }));
+          setClientOptions(options);
+          return;
+        }
+
+        const res = await clinicListClients({
+          limit: 200,
+          clinicId: role === "admin" ? clinicId : undefined,
+        });
+        if (!active) return;
+        const options = (res.items ?? []).map((client) => ({
+          id: client.id,
+          label: client.fullName || client.email || client.id,
+        }));
+        setClientOptions(options);
+      } catch (err) {
+        if (!active) return;
+        setClientError(err instanceof Error ? err.message : String(err));
+        setClientOptions([]);
+      } finally {
+        if (active) setClientLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, [clinicId, requiresClinicContext, role, showClientSelector]);
+
   if (!loading && !me) {
     return (
       <div className="min-h-screen bg-app-bg px-6 py-12">
@@ -211,6 +272,28 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
         </div>
       </div>
     );
+  }
+
+  function updateClientQuery(nextClientId: string) {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (nextClientId) {
+      url.searchParams.set("clientId", nextClientId);
+    } else {
+      url.searchParams.delete("clientId");
+    }
+    const next = `${url.pathname}${url.search}`;
+    router.replace(next || pathname);
+  }
+
+  function handleClientSelect(nextClientId: string) {
+    setStoredClientId(nextClientId);
+    updateClientQuery(nextClientId);
+  }
+
+  function clearClientSelection() {
+    setStoredClientId("");
+    updateClientQuery("");
   }
 
   return (
@@ -303,11 +386,51 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
                 <div className="hidden md:block">
                   <Input aria-label="Search" placeholder="Search" className="w-48" />
                 </div>
-                <div className="hidden md:block">
-                  <Select defaultValue="context" aria-label="Clinic context">
-                    <option value="context">Clinic context (set per page)</option>
-                  </Select>
-                </div>
+                {showClientSelector && (
+                  <div className="flex items-end gap-2">
+                    <div>
+                      <label className="block text-xs text-app-muted">Client</label>
+                      <Select
+                        aria-label="Client selector"
+                        value={selectedClientId}
+                        onChange={(e) => handleClientSelect(e.target.value)}
+                        disabled={clientLoading || requiresClinicContext}
+                        title={
+                          requiresClinicContext
+                            ? "Set a clinic context first."
+                            : clientError
+                              ? clientError
+                              : clientLoading
+                                ? "Loading clients..."
+                                : undefined
+                        }
+                      >
+                        <option value="">
+                          {clientLoading
+                            ? "Loading clients..."
+                            : clientOptions.length === 0
+                              ? "No clients available"
+                              : "Select client"}
+                        </option>
+                        {clientOptions.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearClientSelection}
+                      disabled={!selectedClientId}
+                      title={selectedClientId ? "Clear client selection" : "No client selected"}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs text-app-muted">
                   {loading ? (
                     <Skeleton className="h-4 w-24" />
