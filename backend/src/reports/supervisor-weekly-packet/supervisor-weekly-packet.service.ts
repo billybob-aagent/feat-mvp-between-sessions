@@ -89,6 +89,8 @@ export class SupervisorWeeklyPacketService {
     top: number;
     includeExternalLinks: boolean;
     externalTtlMinutes: number;
+    nowOverride?: Date;
+    generatedAtOverride?: Date;
   }): Promise<SupervisorWeeklyPacket> {
     const {
       userId,
@@ -176,7 +178,7 @@ export class SupervisorWeeklyPacketService {
       },
     });
 
-    const now = new Date();
+    const now = params.nowOverride ?? new Date();
     const escalationRows = escalationRowsRaw.map((row) => {
       const sla = computeSla({
         createdAt: row.created_at,
@@ -306,7 +308,7 @@ export class SupervisorWeeklyPacketService {
       meta: {
         report_type: "SUPERVISOR_WEEKLY_PACKET",
         version: "v1",
-        generated_at: new Date().toISOString(),
+        generated_at: (params.generatedAtOverride ?? new Date()).toISOString(),
         period: { start: startLabel, end: endLabel },
         clinic_id: clinicId,
         program,

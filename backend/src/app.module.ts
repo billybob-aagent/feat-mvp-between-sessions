@@ -22,6 +22,7 @@ import { LibraryModule } from './modules/library/library.module';
 import { AerReportModule } from './reports/aer/aer-report.module';
 import { AerRollupModule } from './reports/aer-rollup/aer-rollup.module';
 import { AerBundleModule } from './reports/aer-bundle/aer-bundle.module';
+import { SubmissionBundleModule } from './reports/submission/submission-bundle.module';
 import { ExternalAccessModule } from './modules/external-access/external-access.module';
 import { SupervisorWeeklyPacketModule } from './reports/supervisor-weekly-packet/supervisor-weekly-packet.module';
 import { SupervisorActionsModule } from './supervisor-actions/supervisor-actions.module';
@@ -58,6 +59,7 @@ import { TraceModule } from './modules/trace/trace.module';
     AerReportModule,
     AerRollupModule,
     AerBundleModule,
+    SubmissionBundleModule,
     ExternalAccessModule,
     SupervisorWeeklyPacketModule,
     SupervisorActionsModule,

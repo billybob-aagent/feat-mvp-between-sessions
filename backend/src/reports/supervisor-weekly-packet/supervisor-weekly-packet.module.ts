@@ -9,5 +9,6 @@ import { PrismaModule } from "../../modules/prisma/prisma.module";
   imports: [AerRollupModule, ExternalAccessModule, PrismaModule],
   controllers: [SupervisorWeeklyPacketController],
   providers: [SupervisorWeeklyPacketService],
+  exports: [SupervisorWeeklyPacketService],
 })
 export class SupervisorWeeklyPacketModule {}
