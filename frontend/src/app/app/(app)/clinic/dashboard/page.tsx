@@ -161,8 +161,8 @@ export default function ClinicDashboardPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-start justify-between gap-3 mb-6">
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-h2">{data?.clinic.name ?? "Clinic dashboard"}</h1>
           <p className="text-sm text-app-muted mt-1">
@@ -179,9 +179,9 @@ export default function ClinicDashboardPage() {
         </div>
       </div>
 
-      {status && <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
-      {inviteError && <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{inviteError}</p>}
-      {inviteStatus && <p className="mb-4 text-sm text-app-muted whitespace-pre-wrap">{inviteStatus}</p>}
+      {status && <p className="text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
+      {inviteError && <p className="text-sm text-app-danger whitespace-pre-wrap">{inviteError}</p>}
+      {inviteStatus && <p className="text-sm text-app-muted whitespace-pre-wrap">{inviteStatus}</p>}
 
       {(sessionLoading || loading) && <p className="text-sm text-app-muted">Loading...</p>}
 
@@ -214,77 +214,129 @@ export default function ClinicDashboardPage() {
             </Card>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <tr>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Summary</TableHead>
-                      <TableHead>When</TableHead>
-                    </tr>
-                  </TableHeader>
-                  <TableBody>
-                    {activity.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.type}</TableCell>
-                        <TableCell>{item.summary}</TableCell>
-                        <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+          <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Activity stream</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <tr>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Summary</TableHead>
+                        <TableHead>When</TableHead>
+                      </tr>
+                    </TableHeader>
+                    <TableBody>
+                      {activity.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.type}</TableCell>
+                          <TableCell>{item.summary}</TableCell>
+                          <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="primary" onClick={() => setInviteTherapistOpen(true)}>
-                    Invite Therapist
-                  </Button>
-                  <Button variant="secondary" onClick={() => setInviteClientOpen(true)}>
-                    Invite Client
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={() => router.push("/app/library")}>
-                    Add Library Content
-                  </Button>
-                  <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
-                    Review Queue
-                  </Button>
-                  {maybeTooltip(
-                    clientRequiredTitle,
-                    !selectedClientId,
-                    <Button
-                      variant="secondary"
-                      onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                      disabled={!selectedClientId}
-                    >
-                      Generate AER
-                    </Button>,
-                  )}
-                  {maybeTooltip(
-                    clientRequiredTitle,
-                    !selectedClientId,
-                    <Button
-                      variant="secondary"
-                      onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
-                      disabled={!selectedClientId}
-                    >
-                      Submission Bundle
-                    </Button>,
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 text-sm text-app-muted">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Operations pipeline</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-app-muted">
+                  <div className="flex items-center justify-between">
+                    <span>Active therapists</span>
+                    <span className="text-app-text font-medium">{data.counts.therapists}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Active clients</span>
+                    <span className="text-app-text font-medium">{data.counts.clients}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Responses captured</span>
+                    <span className="text-app-text font-medium">{data.counts.responses}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Check-ins captured</span>
+                    <span className="text-app-text font-medium">{data.counts.checkinsLast7d}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Action center</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                      Invites
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="primary" onClick={() => setInviteTherapistOpen(true)}>
+                        Invite Therapist
+                      </Button>
+                      <Button variant="secondary" onClick={() => setInviteClientOpen(true)}>
+                        Invite Client
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                      Review & reporting
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
+                        Review Queue
+                      </Button>
+                      {maybeTooltip(
+                        clientRequiredTitle,
+                        !selectedClientId,
+                        <Button
+                          variant="secondary"
+                          onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                          disabled={!selectedClientId}
+                        >
+                          Generate AER
+                        </Button>,
+                      )}
+                      {maybeTooltip(
+                        clientRequiredTitle,
+                        !selectedClientId,
+                        <Button
+                          variant="secondary"
+                          onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
+                          disabled={!selectedClientId}
+                        >
+                          Submission Bundle
+                        </Button>,
+                      )}
+                    </div>
+                    {!selectedClientId && (
+                      <div className="mt-2 text-xs text-app-muted">Select a client to export reports.</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                      Library
+                    </div>
+                    <Button variant="secondary" onClick={() => router.push("/app/library")}>
+                      Add Library Content
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Directories & oversight</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2 text-sm text-app-muted">
                   <Link className="text-app-accent" href="/app/clients">
                     Clients
                   </Link>
@@ -300,9 +352,9 @@ export default function ClinicDashboardPage() {
                   <Link className="text-app-accent" href="/app/external-access">
                     External Access
                   </Link>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       )}

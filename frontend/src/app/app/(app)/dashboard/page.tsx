@@ -261,98 +261,152 @@ export default function DashboardPage() {
               </Alert>
             )}
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <tr>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Summary</TableHead>
-                        <TableHead>When</TableHead>
-                      </tr>
-                    </TableHeader>
-                    <TableBody>
-                      {activity.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.type}</TableCell>
-                          <TableCell>{item.summary}</TableCell>
-                          <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+            <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity stream</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <tr>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Summary</TableHead>
+                          <TableHead>When</TableHead>
+                        </tr>
+                      </TableHeader>
+                      <TableBody>
+                        {activity.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.type}</TableCell>
+                            <TableCell>{item.summary}</TableCell>
+                            <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {canManageClinic && (
-                    <div className="flex flex-wrap gap-2">
-                      {maybeTooltip(
-                        !canInvite ? "Select a clinic context first." : undefined,
-                        !canInvite,
-                        <Button
-                          variant="primary"
-                          onClick={() => setInviteTherapistOpen(true)}
-                          disabled={!canInvite}
-                        >
-                          Invite Therapist
-                        </Button>,
-                      )}
-                      {maybeTooltip(
-                        !canInvite ? "Select a clinic context first." : undefined,
-                        !canInvite,
-                        <Button
-                          variant="secondary"
-                          onClick={() => setInviteClientOpen(true)}
-                          disabled={!canInvite}
-                        >
-                          Invite Client
-                        </Button>,
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Operations pipeline</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-app-muted">
+                    <div className="flex items-center justify-between">
+                      <span>Active therapists</span>
+                      <span className="text-app-text font-medium">{data.counts.therapists}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Active clients</span>
+                      <span className="text-app-text font-medium">{data.counts.clients}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Assignments assigned</span>
+                      <span className="text-app-text font-medium">{data.counts.assignments}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Responses captured</span>
+                      <span className="text-app-text font-medium">{data.counts.responses}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Action center</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {canManageClinic && (
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                          Invites
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {maybeTooltip(
+                            !canInvite ? "Select a clinic context first." : undefined,
+                            !canInvite,
+                            <Button
+                              variant="primary"
+                              onClick={() => setInviteTherapistOpen(true)}
+                              disabled={!canInvite}
+                            >
+                              Invite Therapist
+                            </Button>,
+                          )}
+                          {maybeTooltip(
+                            !canInvite ? "Select a clinic context first." : undefined,
+                            !canInvite,
+                            <Button
+                              variant="secondary"
+                              onClick={() => setInviteClientOpen(true)}
+                              disabled={!canInvite}
+                            >
+                              Invite Client
+                            </Button>,
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                        Review & reporting
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
+                          Review Queue
+                        </Button>
+                        {maybeTooltip(
+                          clientRequiredTitle,
+                          !selectedClientId,
+                          <Button
+                            variant="secondary"
+                            onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                            disabled={!selectedClientId}
+                          >
+                            Generate AER
+                          </Button>,
+                        )}
+                        {maybeTooltip(
+                          clientRequiredTitle,
+                          !selectedClientId,
+                          <Button
+                            variant="secondary"
+                            onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
+                            disabled={!selectedClientId}
+                          >
+                            Download Submission Bundle
+                          </Button>,
+                        )}
+                      </div>
+                      {!selectedClientId && (
+                        <div className="mt-2 text-xs text-app-muted">
+                          Select a client to export reports.
+                        </div>
                       )}
                     </div>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => router.push(isAdmin ? "/app/admin/library" : "/app/library")}
-                    >
-                      Add Library Content
-                    </Button>
-                    <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
-                      Review Queue
-                    </Button>
-                    {maybeTooltip(
-                      clientRequiredTitle,
-                      !selectedClientId,
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                        Library
+                      </div>
                       <Button
                         variant="secondary"
-                        onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                        disabled={!selectedClientId}
+                        onClick={() => router.push(isAdmin ? "/app/admin/library" : "/app/library")}
                       >
-                        Generate AER
-                      </Button>,
-                    )}
-                    {maybeTooltip(
-                      clientRequiredTitle,
-                      !selectedClientId,
-                      <Button
-                        variant="secondary"
-                        onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
-                        disabled={!selectedClientId}
-                      >
-                        Download Submission Bundle
-                      </Button>,
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-sm text-app-muted">
+                        Add Library Content
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Directories & oversight</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2 text-sm text-app-muted">
                     <Link className="text-app-accent" href="/app/clinic/therapists">
                       Therapists directory
                     </Link>
@@ -368,9 +422,9 @@ export default function DashboardPage() {
                     <Link className="text-app-accent" href="/app/external-access">
                       External Access
                     </Link>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         )}
