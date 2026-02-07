@@ -255,6 +255,9 @@ export default function ClinicDashboardPage() {
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" onClick={() => router.push("/app/library")}>
+                    Add Library Content
+                  </Button>
                   <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
                     Review Queue
                   </Button>
@@ -290,6 +293,9 @@ export default function ClinicDashboardPage() {
                   </Link>
                   <Link className="text-app-accent" href="/app/escalations">
                     Escalations
+                  </Link>
+                  <Link className="text-app-accent" href="/app/reports/supervisor-weekly">
+                    Supervisor Weekly
                   </Link>
                   <Link className="text-app-accent" href="/app/external-access">
                     External Access
