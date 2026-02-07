@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type ClientAssignmentRow = {
   id: string;
@@ -32,6 +33,7 @@ type ClientAssignmentRow = {
 };
 
 export default function ClientAssignmentsPage() {
+  const router = useRouter();
   const { me, loading: sessionLoading } = useMe();
   const [items, setItems] = useState<ClientAssignmentRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -101,6 +103,30 @@ export default function ClientAssignmentsPage() {
           <p className="text-sm text-app-muted">
             Complete check-ins that your therapist has assigned.
           </p>
+          <div className="mt-2 text-sm text-app-muted">
+            You have <span className="font-medium text-app-text">{items.length}</span> active assignments.
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* TODO: wire daily check-in flow to POST /api/v1/checkins/submit */}
+          <Tooltip label="Coming soon">
+            <span className="inline-flex">
+              <Button variant="secondary" disabled>
+                Start Today&apos;s Check-in
+              </Button>
+            </span>
+          </Tooltip>
+          <Button variant="secondary" onClick={() => router.push("/app/client/assignments")}>
+            View Active Assignments
+          </Button>
+          {/* TODO: add client feedback endpoint (GET /api/v1/feedback?clientId=...) */}
+          <Tooltip label="Coming soon">
+            <span className="inline-flex">
+              <Button variant="secondary" disabled>
+                View Feedback
+              </Button>
+            </span>
+          </Tooltip>
         </div>
       </div>
 
@@ -213,12 +239,13 @@ export default function ClientAssignmentsPage() {
                       {last ?? "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link
-                        className="inline-flex items-center justify-center rounded-md border border-app-border px-3 py-2 text-xs text-app-text shadow-soft hover:bg-app-surface-2"
-                        href={`/app/client/assignments/${a.id}`}
+                      <Button
+                        size="sm"
+                        variant={count > 0 ? "secondary" : "primary"}
+                        onClick={() => router.push(`/app/client/assignments/${a.id}`)}
                       >
-                        Open check-in
-                      </Link>
+                        {count > 0 ? "View response" : "Submit response"}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
