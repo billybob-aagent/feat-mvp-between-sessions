@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
@@ -95,16 +95,30 @@ export default function ClientAssignmentsPage() {
     }
   }
 
+  const stats = useMemo(() => {
+    const active = items.length;
+    const submitted = items.filter((a) => (a.responseCount ?? 0) > 0).length;
+    const reviewed = items.filter((a) => !!a.lastReviewedAt).length;
+    const dueSoon = items.filter((a) => {
+      if (!a.dueDate) return false;
+      const dueAt = new Date(a.dueDate).getTime();
+      const now = Date.now();
+      const diff = dueAt - now;
+      return diff >= 0 && diff <= 1000 * 60 * 60 * 24 * 7;
+    }).length;
+    return { active, submitted, reviewed, dueSoon };
+  }, [items]);
+
   return (
-    <main className="max-w-6xl mx-auto px-6 py-10">
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+    <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-h2">Your check-ins</h1>
           <p className="text-sm text-app-muted">
             Complete check-ins that your therapist has assigned.
           </p>
           <div className="mt-2 text-sm text-app-muted">
-            You have <span className="font-medium text-app-text">{items.length}</span> active assignments.
+            You have <span className="font-medium text-app-text">{stats.active}</span> active assignments.
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -130,138 +144,163 @@ export default function ClientAssignmentsPage() {
         </div>
       </div>
 
-      {status && (
-        <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>
-      )}
+      {status && <p className="text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
 
-      <Card className="mb-6">
-        <CardContent className="flex flex-wrap items-end gap-4">
-          <div className="min-w-[220px]">
-            <label className="text-label text-app-muted">Search</label>
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search check-ins"
-              disabled={loading || loadingMore}
-            />
-          </div>
-          <div>
-            <label className="text-label text-app-muted">Page size</label>
-            <Select
-              value={String(limit)}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              disabled={loading || loadingMore}
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </Select>
-          </div>
-          <div className="ml-auto text-xs text-app-muted">
-            Showing <span className="font-medium text-app-text">{items.length}</span>
-            {nextCursor ? <span className="ml-2">(more available)</span> : null}
-          </div>
-        </CardContent>
-      </Card>
-
-      {(sessionLoading || loading) && (
-        <p className="text-sm text-app-muted">Loading...</p>
-      )}
-
-      {!loading && items.length === 0 && (
-        <Card className="mb-6">
-          <CardContent className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">No check-ins yet</div>
-              <p className="text-sm text-app-muted">
-                Your therapist will send a check-in when ready.
-              </p>
-            </div>
-            <Button type="button" onClick={loadFirstPage}>
-              Refresh
-            </Button>
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent>
+            <div className="text-label text-app-muted">Active assignments</div>
+            <div className="text-2xl font-semibold mt-2">{stats.active}</div>
           </CardContent>
         </Card>
-      )}
+        <Card>
+          <CardContent>
+            <div className="text-label text-app-muted">Submitted</div>
+            <div className="text-2xl font-semibold mt-2">{stats.submitted}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="text-label text-app-muted">Reviewed</div>
+            <div className="text-2xl font-semibold mt-2">{stats.reviewed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="text-label text-app-muted">Due soon</div>
+            <div className="text-2xl font-semibold mt-2">{stats.dueSoon}</div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {items.length > 0 && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Check-in</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last submission</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((a) => {
-                const due = a.dueDate ? new Date(a.dueDate).toLocaleDateString() : "-";
-                const count = a.responseCount ?? 0;
-                const last = a.lastSubmittedAt
-                  ? new Date(a.lastSubmittedAt).toLocaleString()
-                  : null;
-                const reviewed = !!a.lastReviewedAt;
+      <Card>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[220px]">
+              <label className="text-label text-app-muted">Search</label>
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search check-ins"
+                disabled={loading || loadingMore}
+              />
+            </div>
+            <div>
+              <label className="text-label text-app-muted">Page size</label>
+              <Select
+                value={String(limit)}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                disabled={loading || loadingMore}
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </Select>
+            </div>
+            <div className="ml-auto text-xs text-app-muted">
+              Showing <span className="font-medium text-app-text">{items.length}</span>
+              {nextCursor ? <span className="ml-2">(more available)</span> : null}
+            </div>
+          </div>
 
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-medium">{a.title}</div>
-                        {a.librarySource ? <Badge variant="neutral">Library</Badge> : null}
-                      </div>
-                      {a.description ? (
-                        <div className="text-xs text-app-muted line-clamp-2">
-                          {a.description}
-                        </div>
-                      ) : null}
-                      {a.librarySource?.title ? (
-                        <div className="text-xs text-app-muted">
-                          Source: {a.librarySource.title}
-                          {a.librarySource.version ? ` v${a.librarySource.version}` : ""}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{due}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {count > 0 ? (
-                          <Badge variant="warning">Submitted</Badge>
-                        ) : (
-                          <Badge variant="neutral">Not submitted</Badge>
-                        )}
-                        {reviewed ? <Badge variant="success">Reviewed</Badge> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-app-muted">
-                      {last ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant={count > 0 ? "secondary" : "primary"}
-                        onClick={() => router.push(`/app/client/assignments/${a.id}`)}
-                      >
-                        {count > 0 ? "View response" : "Submit response"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          {(sessionLoading || loading) && (
+            <p className="text-sm text-app-muted">Loading...</p>
+          )}
 
-          {nextCursor && (
-            <div className="mt-4 flex justify-end">
-              <Button type="button" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? "Loading..." : "Load more"}
+          {!loading && items.length === 0 && (
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">No check-ins yet</div>
+                <p className="text-sm text-app-muted">
+                  Your therapist will send a check-in when ready.
+                </p>
+              </div>
+              <Button type="button" onClick={loadFirstPage}>
+                Refresh
               </Button>
             </div>
           )}
-        </>
-      )}
+
+          {items.length > 0 && (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Check-in</TableHead>
+                    <TableHead>Due</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last submission</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((a) => {
+                    const due = a.dueDate ? new Date(a.dueDate).toLocaleDateString() : "-";
+                    const count = a.responseCount ?? 0;
+                    const last = a.lastSubmittedAt
+                      ? new Date(a.lastSubmittedAt).toLocaleString()
+                      : null;
+                    const reviewed = !!a.lastReviewedAt;
+
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-medium">{a.title}</div>
+                            {a.librarySource ? <Badge variant="neutral">Library</Badge> : null}
+                          </div>
+                          {a.description ? (
+                            <div className="text-xs text-app-muted line-clamp-2">
+                              {a.description}
+                            </div>
+                          ) : null}
+                          {a.librarySource?.title ? (
+                            <div className="text-xs text-app-muted">
+                              Source: {a.librarySource.title}
+                              {a.librarySource.version ? ` v${a.librarySource.version}` : ""}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{due}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            {count > 0 ? (
+                              <Badge variant="warning">Submitted</Badge>
+                            ) : (
+                              <Badge variant="neutral">Not submitted</Badge>
+                            )}
+                            {reviewed ? <Badge variant="success">Reviewed</Badge> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-app-muted">
+                          {last ?? "-"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant={count > 0 ? "secondary" : "primary"}
+                            onClick={() => router.push(`/app/client/assignments/${a.id}`)}
+                          >
+                            {count > 0 ? "View response" : "Submit response"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {nextCursor && (
+                <div className="flex justify-end">
+                  <Button type="button" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Loading..." : "Load more"}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }
