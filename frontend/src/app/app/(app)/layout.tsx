@@ -16,10 +16,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 
 const buildNav = (role?: string | null) => {
+  const dashboardHref =
+    role === "therapist"
+      ? "/app/therapist/dashboard"
+      : role === "client"
+        ? "/app/client/assignments"
+        : "/app/dashboard";
+
   const base = [
     {
       section: "Home",
-      items: [{ label: "Dashboard", href: "/app/dashboard" }],
+      items: [{ label: "Dashboard", href: dashboardHref }],
     },
   ];
 

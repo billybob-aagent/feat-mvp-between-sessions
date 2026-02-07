@@ -212,223 +212,325 @@ export default function TherapistDashboard() {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-10">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-h1">Therapist dashboard</h1>
-          <p className="text-sm text-app-muted mt-1">
-            A calm overview of caseload activity, recent signals, and quick actions.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Link
-            className="text-app-muted hover:text-app-text"
-            href="/app/therapist/assignments"
-          >
-            View assignments
-          </Link>
-          <Link className="text-app-muted hover:text-app-text" href="/app/therapist/audit">
-            Audit trail
-          </Link>
-        </div>
-      </div>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Quick actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {!selectedClientId && (
-            <div className="text-sm text-app-muted">Select a client to begin.</div>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            {maybeTooltip(
-              clientRequiredTitle,
-              !selectedClientId,
-              <Button
-                variant="primary"
-                onClick={() => router.push(`/app/library${clientQuery}`)}
-                disabled={!selectedClientId}
-              >
-                Assign from Library
-              </Button>,
-            )}
-            {maybeTooltip(
-              clientRequiredTitle,
-              !selectedClientId,
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
-                }
-                disabled={!selectedClientId}
-              >
-                Send Check-in
-              </Button>,
-            )}
-            <Button
-              variant="secondary"
-              onClick={() => router.push(`/app/review-queue${clientQuery}`)}
-            >
-              Review Queue
-            </Button>
-            {maybeTooltip(
-              clientRequiredTitle,
-              !selectedClientId,
-              <Button
-                variant="secondary"
-                onClick={() => router.push(`/app/ai/adherence-assist${clientQuery}`)}
-                disabled={!selectedClientId}
-              >
-                Draft Feedback (AI)
-              </Button>,
-            )}
-            {maybeTooltip(
-              clientRequiredTitle,
-              !selectedClientId,
-              <Button
-                variant="secondary"
-                onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                disabled={!selectedClientId}
-              >
-                Generate AER
-              </Button>,
-            )}
-            {maybeTooltip(
-              clientRequiredTitle,
-              !selectedClientId,
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
-                }
-                disabled={!selectedClientId}
-              >
-                View Client Profile
-              </Button>,
-            )}
+    <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+      <section className="rounded-2xl border border-app-border bg-app-surface-2 p-6 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              Therapist command
+            </div>
+            <h1 className="text-h1 mt-2">Therapist dashboard</h1>
+            <p className="text-sm text-app-muted mt-1">
+              Caseload overview, priority actions, and review readiness.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2 text-sm">
+            <Link
+              className="text-app-muted hover:text-app-text"
+              href="/app/therapist/assignments"
+            >
+              View assignments
+            </Link>
+            <Link className="text-app-muted hover:text-app-text" href="/app/therapist/audit">
+              Audit trail
+            </Link>
+          </div>
+        </div>
 
-      {status && (
-        <p className="mb-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>
-      )}
+        {status && (
+          <p className="mt-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>
+        )}
 
-      <div className="grid md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Active assignments</div>
-            <div className="text-2xl font-semibold mt-2">0</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Pending responses</div>
-            <div className="text-2xl font-semibold mt-2">0</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Check-ins this week</div>
-            <div className="text-2xl font-semibold mt-2">0</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Alerts</div>
-            <div className="mt-2">
-              <Badge variant="neutral">No alerts</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {activity.length === 0 ? (
-            <div className="text-sm text-app-muted">
-              No recent activity yet. Responses and check-ins will appear here.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <tr>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Summary</TableHead>
-                  <TableHead>When</TableHead>
-                </tr>
-              </TableHeader>
-              <TableBody>
-                {activity.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.type}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <section className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create invite</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={createInvite} className="space-y-3">
-              <Input
-                placeholder="Client email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                type="email"
-              />
-
-              <Button type="submit" variant="primary">
-                Create invite
-              </Button>
-            </form>
-
-            {inviteData && inviteLink && (
-              <Card className="mt-4">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-4 gap-4">
+              <Card>
                 <CardContent>
-                  <div className="text-sm font-medium">Invite link</div>
-
-                  <div className="mt-2 text-sm break-all">
-                    <a
-                      className="text-app-accent hover:underline"
-                      href={inviteLink}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {inviteLink}
-                    </a>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <Button type="button" onClick={copyInviteLink} variant="secondary">
-                      Copy
-                    </Button>
-                    {copyStatus && (
-                      <span className="text-xs text-app-muted">{copyStatus}</span>
-                    )}
-                  </div>
-
-                  {inviteData.expires_at && (
-                    <div className="mt-2 text-xs text-app-muted">
-                      Expires: {new Date(inviteData.expires_at).toLocaleString()}
-                    </div>
-                  )}
+                  <div className="text-label text-app-muted">Active assignments</div>
+                  <div className="text-2xl font-semibold mt-2">0</div>
                 </CardContent>
               </Card>
+              <Card>
+                <CardContent>
+                  <div className="text-label text-app-muted">Pending responses</div>
+                  <div className="text-2xl font-semibold mt-2">0</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent>
+                  <div className="text-label text-app-muted">Check-ins this week</div>
+                  <div className="text-2xl font-semibold mt-2">0</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent>
+                  <div className="text-label text-app-muted">Alerts</div>
+                  <div className="mt-2">
+                    <Badge variant="neutral">No alerts</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activity.length === 0 ? (
+                  <div className="text-sm text-app-muted">
+                    No recent activity yet. Responses and check-ins will appear here.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <tr>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Summary</TableHead>
+                        <TableHead>When</TableHead>
+                      </tr>
+                    </TableHeader>
+                    <TableBody>
+                      {activity.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.type}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Focus today</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!selectedClientId && (
+                  <div className="text-sm text-app-muted">Select a client to unlock actions.</div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {maybeTooltip(
+                    clientRequiredTitle,
+                    !selectedClientId,
+                    <Button
+                      variant="primary"
+                      onClick={() => router.push(`/app/library${clientQuery}`)}
+                      disabled={!selectedClientId}
+                    >
+                      Assign from Library
+                    </Button>,
+                  )}
+                  {maybeTooltip(
+                    clientRequiredTitle,
+                    !selectedClientId,
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+                      }
+                      disabled={!selectedClientId}
+                    >
+                      Send Check-in
+                    </Button>,
+                  )}
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/app/review-queue${clientQuery}`)}
+                  >
+                    Review Queue
+                  </Button>
+                  {maybeTooltip(
+                    clientRequiredTitle,
+                    !selectedClientId,
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(`/app/ai/adherence-assist${clientQuery}`)}
+                      disabled={!selectedClientId}
+                    >
+                      Draft Feedback (AI)
+                    </Button>,
+                  )}
+                  {maybeTooltip(
+                    clientRequiredTitle,
+                    !selectedClientId,
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                      disabled={!selectedClientId}
+                    >
+                      Generate AER
+                    </Button>,
+                  )}
+                  {maybeTooltip(
+                    clientRequiredTitle,
+                    !selectedClientId,
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        selectedClientId ? router.push(`/app/clients/${selectedClientId}`) : null
+                      }
+                      disabled={!selectedClientId}
+                    >
+                      View Client Profile
+                    </Button>,
+                  )}
+                </div>
+                <div className="text-xs text-app-muted">
+                  Actions are scoped to the selected client in the top bar.
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Client invites</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={createInvite} className="space-y-3">
+                  <Input
+                    placeholder="Client email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                    type="email"
+                  />
+
+                  <Button type="submit" variant="primary">
+                    Create invite
+                  </Button>
+                </form>
+
+                {inviteData && inviteLink && (
+                  <Card className="mt-4">
+                    <CardContent>
+                      <div className="text-sm font-medium">Invite link</div>
+
+                      <div className="mt-2 text-sm break-all">
+                        <a
+                          className="text-app-accent hover:underline"
+                          href={inviteLink}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {inviteLink}
+                        </a>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button type="button" onClick={copyInviteLink} variant="secondary">
+                          Copy
+                        </Button>
+                        {copyStatus && (
+                          <span className="text-xs text-app-muted">{copyStatus}</span>
+                        )}
+                      </div>
+
+                      {inviteData.expires_at && (
+                        <div className="mt-2 text-xs text-app-muted">
+                          Expires: {new Date(inviteData.expires_at).toLocaleString()}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid lg:grid-cols-[2fr_1fr] gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment studio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={assignPrompt} className="grid gap-3">
+              <div>
+                <label className="block text-label text-app-muted mb-1">Client</label>
+                <Select
+                  value={assignClientId}
+                  onChange={(e) => setAssignClientId(e.target.value)}
+                >
+                  {clients.length === 0 ? (
+                    <option value="">No clients yet</option>
+                  ) : (
+                    clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.fullName} ({c.email})
+                      </option>
+                    ))
+                  )}
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-label text-app-muted mb-1">Prompt</label>
+                <Select
+                  value={assignPromptId}
+                  onChange={(e) => setAssignPromptId(e.target.value)}
+                >
+                  {prompts.length === 0 ? (
+                    <option value="">No prompts yet</option>
+                  ) : (
+                    prompts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))
+                  )}
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-label text-app-muted mb-1">Due date (optional)</label>
+                <Input
+                  type="date"
+                  value={assignDueDate}
+                  onChange={(e) => setAssignDueDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={assigning || clients.length === 0 || prompts.length === 0}
+                >
+                  {assigning ? "Assigning..." : "Assign"}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setAssignStatus(null);
+                    loadClients();
+                    loadPrompts();
+                  }}
+                >
+                  Refresh lists
+                </Button>
+              </div>
+            </form>
+
+            {assignStatus && (
+              <p className="mt-3 text-sm text-app-muted whitespace-pre-wrap">{assignStatus}</p>
             )}
+
+            <p className="mt-3 text-xs text-app-muted">
+              Test as the client at{" "}
+              <a className="text-app-accent hover:underline" href="/app/client/assignments">
+                /app/client/assignments
+              </a>{" "}
+              (in a different browser/profile or after logging out and logging in as the client).
+            </p>
           </CardContent>
         </Card>
 
@@ -461,95 +563,7 @@ export default function TherapistDashboard() {
         </Card>
       </section>
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Assign prompt to client</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={assignPrompt} className="grid md:grid-cols-4 gap-3">
-            <div className="md:col-span-2">
-              <label className="block text-label text-app-muted mb-1">Client</label>
-              <Select
-                value={assignClientId}
-                onChange={(e) => setAssignClientId(e.target.value)}
-              >
-                {clients.length === 0 ? (
-                  <option value="">No clients yet</option>
-                ) : (
-                  clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.fullName} ({c.email})
-                    </option>
-                  ))
-                )}
-              </Select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-label text-app-muted mb-1">Prompt</label>
-              <Select
-                value={assignPromptId}
-                onChange={(e) => setAssignPromptId(e.target.value)}
-              >
-                {prompts.length === 0 ? (
-                  <option value="">No prompts yet</option>
-                ) : (
-                  prompts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
-                  ))
-                )}
-              </Select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-label text-app-muted mb-1">Due date (optional)</label>
-              <Input
-                type="date"
-                value={assignDueDate}
-                onChange={(e) => setAssignDueDate(e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-2 flex items-end gap-2">
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={assigning || clients.length === 0 || prompts.length === 0}
-              >
-                {assigning ? "Assigning..." : "Assign"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setAssignStatus(null);
-                  loadClients();
-                  loadPrompts();
-                }}
-              >
-                Refresh lists
-              </Button>
-            </div>
-          </form>
-
-          {assignStatus && (
-            <p className="mt-3 text-sm text-app-muted whitespace-pre-wrap">{assignStatus}</p>
-          )}
-
-          <p className="mt-3 text-xs text-app-muted">
-            Test as the client at{" "}
-            <a className="text-app-accent hover:underline" href="/app/client/assignments">
-              /app/client/assignments
-            </a>{" "}
-            (in a different browser/profile or after logging out and logging in as the client).
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-8">
+      <Card>
         <CardHeader>
           <CardTitle>Your prompts</CardTitle>
         </CardHeader>

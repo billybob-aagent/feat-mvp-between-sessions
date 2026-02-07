@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function TherapistIndexPage() {
-  redirect("/app/therapist/assignments");
+  redirect("/app/therapist/dashboard");
 }
