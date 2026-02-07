@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMe } from "@/lib/use-me";
-import { apiDownload, apiFetch } from "@/lib/api";
+import { apiDownload, apiDownloadPost, apiFetch } from "@/lib/api";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import { PageLayout } from "@/components/page/PageLayout";
 import { FilterBar } from "@/components/page/FilterBar";
@@ -61,6 +61,7 @@ function daysAgoIso(days: number) {
 export default function AerReportPage() {
   const { me } = useMe();
   const canIssueExternal = me?.role === "CLINIC_ADMIN" || me?.role === "admin";
+  const canBundle = canIssueExternal;
 
   const [clinicId, setClinicId] = useLocalStorageState("bs.clinic.id", "");
   const [clientId, setClientId] = useLocalStorageState("bs.aer.clientId", "");
@@ -79,6 +80,11 @@ export default function AerReportPage() {
     url: string | null;
     error: string | null;
   }>({ loading: false, size: null, url: null, error: null });
+  const [bundleInfo, setBundleInfo] = useState<{
+    loading: boolean;
+    size: number | null;
+    error: string | null;
+  }>({ loading: false, size: null, error: null });
 
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [externalStatus, setExternalStatus] = useState<string | null>(null);
@@ -151,6 +157,32 @@ export default function AerReportPage() {
     }
   }
 
+  async function downloadBundle() {
+    if (!clinicId || !clientId) return;
+    setBundleInfo({ loading: true, size: null, error: null });
+    try {
+      const { blob, filename, size } = await apiDownloadPost("/reports/aer-bundle", {
+        clinicId,
+        clientId,
+        start,
+        end,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || `AER_BUNDLE_${clientId}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setBundleInfo({ loading: false, size: size ?? blob.size, error: null });
+    } catch (err) {
+      setBundleInfo({
+        loading: false,
+        size: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   async function createExternalLink() {
     if (!clinicId || !clientId) return;
     setExternalStatus(null);
@@ -197,6 +229,15 @@ export default function AerReportPage() {
           <Button variant="secondary" onClick={downloadPdf} disabled={!pdfPath}>
             Download PDF
           </Button>
+          {canBundle && (
+            <Button
+              variant="secondary"
+              onClick={downloadBundle}
+              disabled={!clinicId || !clientId || bundleInfo.loading}
+            >
+              {bundleInfo.loading ? "Downloading..." : "Download AER Bundle"}
+            </Button>
+          )}
         </div>
       }
     >
@@ -305,6 +346,11 @@ export default function AerReportPage() {
                   PDF size: <span className="text-app-text">{formatBytes(pdfInfo.size)}</span>
                 </div>
               )}
+              {bundleInfo.size !== null && (
+                <div>
+                  Bundle size: <span className="text-app-text">{formatBytes(bundleInfo.size)}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -392,6 +438,7 @@ export default function AerReportPage() {
                 )}
               </div>
               {pdfInfo.error && <Alert variant="danger">{pdfInfo.error}</Alert>}
+              {bundleInfo.error && <Alert variant="danger">{bundleInfo.error}</Alert>}
             </CardContent>
           </Card>
 
