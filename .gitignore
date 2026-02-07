@@ -15,6 +15,7 @@ backend_local_backup/
 public_local_backup_*/
 src_local_backup_*/
 .git_broken_backup/
+pilot_packets/
 
 # OS / editor
 .DS_Store
