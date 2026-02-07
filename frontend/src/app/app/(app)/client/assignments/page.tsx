@@ -111,70 +111,90 @@ export default function ClientAssignmentsPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-h2">Your check-ins</h1>
-          <p className="text-sm text-app-muted">
-            Complete check-ins that your therapist has assigned.
-          </p>
-          <div className="mt-2 text-sm text-app-muted">
-            You have <span className="font-medium text-app-text">{stats.active}</span> active assignments.
+      <section className="rounded-2xl border border-app-border bg-app-surface-2 p-6 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              Daily plan
+            </div>
+            <h1 className="text-h2 mt-2">Your check-ins</h1>
+            <p className="text-sm text-app-muted">
+              Complete check-ins that your therapist has assigned.
+            </p>
+            <div className="mt-2 text-sm text-app-muted">
+              You have <span className="font-medium text-app-text">{stats.active}</span> active assignments.
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* TODO: wire daily check-in flow to POST /api/v1/checkins/submit */}
+            <Tooltip label="Coming soon">
+              <span className="inline-flex">
+                <Button variant="secondary" disabled>
+                  Start Today&apos;s Check-in
+                </Button>
+              </span>
+            </Tooltip>
+            <Button variant="secondary" onClick={() => router.push("/app/client/assignments")}>
+              View Active Assignments
+            </Button>
+            {/* TODO: add client feedback endpoint (GET /api/v1/feedback?clientId=...) */}
+            <Tooltip label="Coming soon">
+              <span className="inline-flex">
+                <Button variant="secondary" disabled>
+                  View Feedback
+                </Button>
+              </span>
+            </Tooltip>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* TODO: wire daily check-in flow to POST /api/v1/checkins/submit */}
-          <Tooltip label="Coming soon">
-            <span className="inline-flex">
-              <Button variant="secondary" disabled>
-                Start Today&apos;s Check-in
-              </Button>
-            </span>
-          </Tooltip>
-          <Button variant="secondary" onClick={() => router.push("/app/client/assignments")}>
-            View Active Assignments
-          </Button>
-          {/* TODO: add client feedback endpoint (GET /api/v1/feedback?clientId=...) */}
-          <Tooltip label="Coming soon">
-            <span className="inline-flex">
-              <Button variant="secondary" disabled>
-                View Feedback
-              </Button>
-            </span>
-          </Tooltip>
+
+        {status && <p className="mt-4 text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
+
+        <div className="mt-6 grid md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent>
+              <div className="text-label text-app-muted">Active assignments</div>
+              <div className="text-2xl font-semibold mt-2">{stats.active}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-label text-app-muted">Submitted</div>
+              <div className="text-2xl font-semibold mt-2">{stats.submitted}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-label text-app-muted">Reviewed</div>
+              <div className="text-2xl font-semibold mt-2">{stats.reviewed}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-label text-app-muted">Due soon</div>
+              <div className="text-2xl font-semibold mt-2">{stats.dueSoon}</div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-
-      {status && <p className="text-sm text-app-danger whitespace-pre-wrap">{status}</p>}
-
-      <div className="grid md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Active assignments</div>
-            <div className="text-2xl font-semibold mt-2">{stats.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Submitted</div>
-            <div className="text-2xl font-semibold mt-2">{stats.submitted}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Reviewed</div>
-            <div className="text-2xl font-semibold mt-2">{stats.reviewed}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-label text-app-muted">Due soon</div>
-            <div className="text-2xl font-semibold mt-2">{stats.dueSoon}</div>
-          </CardContent>
-        </Card>
-      </div>
+      </section>
 
       <Card>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+                Assignment inbox
+              </div>
+              <div className="text-sm text-app-muted">
+                Search and complete check-ins assigned to you.
+              </div>
+            </div>
+            <div className="text-xs text-app-muted">
+              Showing <span className="font-medium text-app-text">{items.length}</span>
+              {nextCursor ? <span className="ml-2">(more available)</span> : null}
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-[220px]">
               <label className="text-label text-app-muted">Search</label>
@@ -196,10 +216,6 @@ export default function ClientAssignmentsPage() {
                 <option value="20">20</option>
                 <option value="50">50</option>
               </Select>
-            </div>
-            <div className="ml-auto text-xs text-app-muted">
-              Showing <span className="font-medium text-app-text">{items.length}</span>
-              {nextCursor ? <span className="ml-2">(more available)</span> : null}
             </div>
           </div>
 

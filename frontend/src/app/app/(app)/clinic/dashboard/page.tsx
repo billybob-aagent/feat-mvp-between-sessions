@@ -187,175 +187,192 @@ export default function ClinicDashboardPage() {
 
       {!loading && data && (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent>
-                <div className="text-label text-app-muted">Therapists</div>
-                <div className="text-2xl font-semibold mt-2">{data.counts.therapists}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <div className="text-label text-app-muted">Clients</div>
-                <div className="text-2xl font-semibold mt-2">{data.counts.clients}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <div className="text-label text-app-muted">Responses (7d)</div>
-                <div className="text-2xl font-semibold mt-2">{data.counts.responses}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <div className="text-label text-app-muted">Check-ins (7d)</div>
-                <div className="text-2xl font-semibold mt-2">{data.counts.checkinsLast7d}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-[2fr_1fr] gap-6">
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Activity stream</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <tr>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Summary</TableHead>
-                        <TableHead>When</TableHead>
-                      </tr>
-                    </TableHeader>
-                    <TableBody>
-                      {activity.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.type}</TableCell>
-                          <TableCell>{item.summary}</TableCell>
-                          <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Operations pipeline</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-app-muted">
-                  <div className="flex items-center justify-between">
-                    <span>Active therapists</span>
-                    <span className="text-app-text font-medium">{data.counts.therapists}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Active clients</span>
-                    <span className="text-app-text font-medium">{data.counts.clients}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Responses captured</span>
-                    <span className="text-app-text font-medium">{data.counts.responses}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Check-ins captured</span>
-                    <span className="text-app-text font-medium">{data.counts.checkinsLast7d}</span>
-                  </div>
-                </CardContent>
-              </Card>
+          <section className="rounded-2xl border border-app-border bg-app-surface-2 p-6 shadow-soft">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+                  Command center
+                </div>
+                <h2 className="text-h3 mt-2">Clinic operations</h2>
+                <p className="text-sm text-app-muted mt-1">
+                  Staffing, client flow, review activity, and reporting in one view.
+                </p>
+              </div>
+              <div className="text-xs text-app-muted">
+                Reports require a selected client for export actions.
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Action center</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
-                      Invites
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="primary" onClick={() => setInviteTherapistOpen(true)}>
-                        Invite Therapist
-                      </Button>
-                      <Button variant="secondary" onClick={() => setInviteClientOpen(true)}>
-                        Invite Client
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
-                      Review & reporting
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
-                        Review Queue
-                      </Button>
-                      {maybeTooltip(
-                        clientRequiredTitle,
-                        !selectedClientId,
-                        <Button
-                          variant="secondary"
-                          onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
-                          disabled={!selectedClientId}
-                        >
-                          Generate AER
-                        </Button>,
-                      )}
-                      {maybeTooltip(
-                        clientRequiredTitle,
-                        !selectedClientId,
-                        <Button
-                          variant="secondary"
-                          onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
-                          disabled={!selectedClientId}
-                        >
-                          Submission Bundle
-                        </Button>,
-                      )}
-                    </div>
-                    {!selectedClientId && (
-                      <div className="mt-2 text-xs text-app-muted">Select a client to export reports.</div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
-                      Library
-                    </div>
-                    <Button variant="secondary" onClick={() => router.push("/app/library")}>
-                      Add Library Content
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent>
+                      <div className="text-label text-app-muted">Therapists</div>
+                      <div className="text-2xl font-semibold mt-2">{data.counts.therapists}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent>
+                      <div className="text-label text-app-muted">Clients</div>
+                      <div className="text-2xl font-semibold mt-2">{data.counts.clients}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent>
+                      <div className="text-label text-app-muted">Responses (7d)</div>
+                      <div className="text-2xl font-semibold mt-2">{data.counts.responses}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent>
+                      <div className="text-label text-app-muted">Check-ins (7d)</div>
+                      <div className="text-2xl font-semibold mt-2">{data.counts.checkinsLast7d}</div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Directories & oversight</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-2 text-sm text-app-muted">
-                  <Link className="text-app-accent" href="/app/clients">
-                    Clients
-                  </Link>
-                  <Link className="text-app-accent" href="/app/clinic/therapists">
-                    Therapists
-                  </Link>
-                  <Link className="text-app-accent" href="/app/escalations">
-                    Escalations
-                  </Link>
-                  <Link className="text-app-accent" href="/app/reports/supervisor-weekly">
-                    Supervisor Weekly
-                  </Link>
-                  <Link className="text-app-accent" href="/app/external-access">
-                    External Access
-                  </Link>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Operations pipeline</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm text-app-muted">
+                    <div className="flex items-center justify-between">
+                      <span>Active therapists</span>
+                      <span className="text-app-text font-medium">{data.counts.therapists}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Active clients</span>
+                      <span className="text-app-text font-medium">{data.counts.clients}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Responses captured</span>
+                      <span className="text-app-text font-medium">{data.counts.responses}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Check-ins captured</span>
+                      <span className="text-app-text font-medium">{data.counts.checkinsLast7d}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Action center</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                        Invites
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="primary" onClick={() => setInviteTherapistOpen(true)}>
+                          Invite Therapist
+                        </Button>
+                        <Button variant="secondary" onClick={() => setInviteClientOpen(true)}>
+                          Invite Client
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                        Review & reporting
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" onClick={() => router.push("/app/review-queue")}>
+                          Review Queue
+                        </Button>
+                        {maybeTooltip(
+                          clientRequiredTitle,
+                          !selectedClientId,
+                          <Button
+                            variant="secondary"
+                            onClick={() => router.push(`/app/reports/aer${clientQuery}`)}
+                            disabled={!selectedClientId}
+                          >
+                            Generate AER
+                          </Button>,
+                        )}
+                        {maybeTooltip(
+                          clientRequiredTitle,
+                          !selectedClientId,
+                          <Button
+                            variant="secondary"
+                            onClick={() => router.push(`/app/reports/submission${clientQuery}`)}
+                            disabled={!selectedClientId}
+                          >
+                            Submission Bundle
+                          </Button>,
+                        )}
+                      </div>
+                      {!selectedClientId && (
+                        <div className="mt-2 text-xs text-app-muted">Select a client to export reports.</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-app-muted mb-2">
+                        Library
+                      </div>
+                      <Button variant="secondary" onClick={() => router.push("/app/library")}>
+                        Add Library Content
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Directories & oversight</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2 text-sm text-app-muted">
+                    <Link className="text-app-accent" href="/app/clients">
+                      Clients
+                    </Link>
+                    <Link className="text-app-accent" href="/app/clinic/therapists">
+                      Therapists
+                    </Link>
+                    <Link className="text-app-accent" href="/app/escalations">
+                      Escalations
+                    </Link>
+                    <Link className="text-app-accent" href="/app/reports/supervisor-weekly">
+                      Supervisor Weekly
+                    </Link>
+                    <Link className="text-app-accent" href="/app/external-access">
+                      External Access
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
+          </section>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity stream</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <tr>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Summary</TableHead>
+                    <TableHead>When</TableHead>
+                  </tr>
+                </TableHeader>
+                <TableBody>
+                  {activity.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.type}</TableCell>
+                      <TableCell>{item.summary}</TableCell>
+                      <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
 
