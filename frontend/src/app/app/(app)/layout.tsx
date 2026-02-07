@@ -45,6 +45,9 @@ const buildNav = (role?: string | null) => {
       { label: "Check-ins", href: "/app/checkins" },
       { label: "Responses", href: "/app/responses" },
       { label: "Review Queue", href: "/app/review-queue" },
+      ...(role === "admin" || role === "CLINIC_ADMIN"
+        ? [{ label: "AER Trace", href: "/app/trace" }]
+        : []),
     ],
   };
 
@@ -149,6 +152,7 @@ const PAGE_LABELS: Record<string, string> = {
   onboarding: "Onboarding",
   pilot: "Pilot Metrics",
   "review-queue": "Review Queue",
+  trace: "AER Trace",
   settings: "Settings",
   "adherence-assist": "Adherence Assist",
   "assessment-assist": "Assessment Assist",

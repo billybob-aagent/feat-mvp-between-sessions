@@ -143,6 +143,40 @@ export async function apiDownload(path: string): Promise<{
   return { blob, filename, contentType, size };
 }
 
+export async function apiDownloadPost(
+  path: string,
+  body: unknown,
+): Promise<{
+  blob: Blob;
+  filename: string | null;
+  contentType: string | null;
+  size: number | null;
+}> {
+  const url = buildUrl(path);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const payload = (await parseJsonSafe(res)) as ApiErrorPayload;
+    const message = normalizeErrorMessage(res.status, payload);
+    throw new ApiError(res.status, message, payload);
+  }
+
+  const blob = await res.blob();
+  const contentType = res.headers.get("content-type");
+  const sizeHeader = res.headers.get("content-length");
+  const size = sizeHeader ? Number(sizeHeader) : null;
+  const disposition = res.headers.get("content-disposition") || "";
+  const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  const filename = filenameMatch?.[1] ?? null;
+
+  return { blob, filename, contentType, size };
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshOnce(): Promise<boolean> {

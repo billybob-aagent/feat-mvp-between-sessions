@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { apiDownload, apiFetch, clinicianListAssignments } from "@/lib/api";
+import { apiDownload, apiDownloadPost, apiFetch, clinicianListAssignments } from "@/lib/api";
 import { clinicDashboard, clinicGetClient, clinicListCheckins, clinicListResponses } from "@/lib/clinic-api";
 import type { ClinicCheckinListItem, ClinicClientDetail } from "@/lib/types/clinic";
 import { useMe } from "@/lib/use-me";
@@ -116,6 +116,7 @@ export default function ClientProfilePage() {
   const role = me?.role ?? null;
   const isClinicAdmin = role === "CLINIC_ADMIN";
   const isTherapist = role === "therapist";
+  const canIssueExternal = role === "CLINIC_ADMIN" || role === "admin";
 
   const [clinicId, setClinicId] = useLocalStorageState<string>(
     "bs.clinic.id",
@@ -148,6 +149,7 @@ export default function ClientProfilePage() {
 
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [externalStatus, setExternalStatus] = useState<string | null>(null);
+  const [bundleStatus, setBundleStatus] = useState<string | null>(null);
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTitle, setAssignTitle] = useState("");
@@ -426,6 +428,31 @@ export default function ClientProfilePage() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadAerBundle() {
+    if (!clinicId) {
+      setAerError("Set clinic context to download bundle.");
+      return;
+    }
+    setBundleStatus(null);
+    try {
+      const { blob, filename } = await apiDownloadPost("/reports/aer-bundle", {
+        clinicId,
+        clientId,
+        start: aerStart,
+        end: aerEnd,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || `AER_BUNDLE_${clientId}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setBundleStatus("Bundle downloaded.");
+    } catch (err) {
+      setBundleStatus(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   async function createExternalLink() {
     if (!clinicId) return;
     setExternalStatus(null);
@@ -572,6 +599,9 @@ export default function ClientProfilePage() {
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => router.push("/app/clients")}>
             Back to clients
+          </Button>
+          <Button variant="secondary" onClick={() => router.push(`/app/clients/${clientId}/trace`)}>
+            View Trace
           </Button>
           {isTherapist && (
             <>
@@ -932,15 +962,23 @@ export default function ClientProfilePage() {
                     <Button variant="secondary" onClick={downloadAerPdf}>
                       Download PDF
                     </Button>
+                    {canIssueExternal && (
+                      <Button variant="secondary" onClick={downloadAerBundle}>
+                        Download Bundle
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-end justify-end">
-                    <Button variant="ghost" onClick={createExternalLink} disabled={!isClinicAdmin}>
+                    <Button variant="ghost" onClick={createExternalLink} disabled={!canIssueExternal}>
                       Copy external link
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
+              {bundleStatus && (
+                <div className="text-sm text-app-muted">{bundleStatus}</div>
+              )}
               {externalStatus && (
                 <div className="text-sm text-app-muted">{externalStatus}</div>
               )}

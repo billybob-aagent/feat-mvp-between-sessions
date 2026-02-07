@@ -21,6 +21,7 @@ import { ClinicModule } from './modules/clinic/clinic.module';
 import { LibraryModule } from './modules/library/library.module';
 import { AerReportModule } from './reports/aer/aer-report.module';
 import { AerRollupModule } from './reports/aer-rollup/aer-rollup.module';
+import { AerBundleModule } from './reports/aer-bundle/aer-bundle.module';
 import { ExternalAccessModule } from './modules/external-access/external-access.module';
 import { SupervisorWeeklyPacketModule } from './reports/supervisor-weekly-packet/supervisor-weekly-packet.module';
 import { SupervisorActionsModule } from './supervisor-actions/supervisor-actions.module';
@@ -28,6 +29,7 @@ import { AiSafetyGatewayModule } from './ai-safety-gateway/ai-safety-gateway.mod
 import { AiAssistModule } from './ai-assist/ai-assist.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
+import { TraceModule } from './modules/trace/trace.module';
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
     LibraryModule,
     AerReportModule,
     AerRollupModule,
+    AerBundleModule,
     ExternalAccessModule,
     SupervisorWeeklyPacketModule,
     SupervisorActionsModule,
@@ -62,6 +65,7 @@ import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
     AiAssistModule,
     MetricsModule,
     ReviewQueueModule,
+    TraceModule,
   ],
   controllers: [AppController],
   providers: [
