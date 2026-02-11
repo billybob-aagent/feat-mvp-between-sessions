@@ -31,6 +31,9 @@ type ReviewQueueItem = {
   flaggedAt: string | null;
   hasTherapistNote: boolean;
   feedbackCount: number;
+  engagementState: "pending" | "partial" | "completed" | "overdue";
+  engagementStateUpdatedAt: string | null;
+  engagementRisk: boolean;
 };
 
 type ReviewQueueResponse = {
@@ -168,6 +171,19 @@ export default function ReviewQueuePage() {
   }, [meLoading, canLoad, loadQueue]);
 
   const selectionCount = selectedIds.size;
+
+  const engagementBadge = (state: ReviewQueueItem["engagementState"]) => {
+    switch (state) {
+      case "overdue":
+        return { label: "Overdue", variant: "danger" as const };
+      case "partial":
+        return { label: "Partial", variant: "warning" as const };
+      case "completed":
+        return { label: "Completed", variant: "success" as const };
+      default:
+        return { label: "Pending", variant: "neutral" as const };
+    }
+  };
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -407,6 +423,7 @@ export default function ReviewQueuePage() {
                   )}
                   <TableHead>Assignment</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Engagement</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Reviewed</TableHead>
                   <TableHead>Flags</TableHead>
@@ -443,6 +460,19 @@ export default function ReviewQueuePage() {
                       <TableCell>
                         <div className="font-medium">{item.clientName ?? item.clientId}</div>
                         <div className="text-xs text-app-muted">{item.clientEmail ?? ""}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={engagementBadge(item.engagementState).variant}>
+                            {engagementBadge(item.engagementState).label}
+                          </Badge>
+                          {item.engagementRisk ? <Badge variant="danger">High risk</Badge> : null}
+                        </div>
+                        <div className="mt-2 text-xs text-app-muted">
+                          {item.engagementStateUpdatedAt
+                            ? `Since ${new Date(item.engagementStateUpdatedAt).toLocaleDateString()}`
+                            : "No activity yet"}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {item.createdAt ? new Date(item.createdAt).toLocaleString() : "-"}

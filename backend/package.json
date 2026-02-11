@@ -12,6 +12,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "ingest:clinical-library": "ts-node scripts/ingestClinicalLibrary.ts",
     "pilot:seed": "ts-node scripts/pilot_seed.ts",
+    "engagement:cycle": "ts-node scripts/engagement_cycle.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

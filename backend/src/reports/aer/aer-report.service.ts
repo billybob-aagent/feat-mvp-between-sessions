@@ -3,7 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { PrismaService } from "../../modules/prisma/prisma.service";
-import { UserRole } from "@prisma/client";
+import { ResponseCompletionStatus, UserRole } from "@prisma/client";
 import { toDateOnlyStringLocal } from "./aer-report.utils";
 
 const AER_STANDARD = "AER_STANDARD_V1";
@@ -135,6 +135,7 @@ type ResponseRow = {
   assignment_id: string;
   created_at: Date;
   mood: number;
+  completion_status: ResponseCompletionStatus;
   reviewed_at: Date | null;
   reviewed_by: { user_id: string; full_name: string } | null;
   flagged_at: Date | null;
@@ -261,6 +262,7 @@ export class AerReportService {
         assignment_id: true,
         created_at: true,
         mood: true,
+        completion_status: true,
         reviewed_at: true,
         reviewed_by: { select: { user_id: true, full_name: true } },
         flagged_at: true,
@@ -309,7 +311,6 @@ export class AerReportService {
 
     addNotAvailable("context.client.display_id (no display_id in clients table)");
     addNotAvailable("prescribed_interventions.completion_criteria (no field in assignments/prompts)");
-    addNotAvailable("prescribed_interventions.status_summary.partial (no partial completion model)");
     addNotAvailable("clinician_review.notes (no review notes model)");
     addNotAvailable("noncompliance_escalations.channel (delivery channel not stored)");
     addNotAvailable("audit_integrity.hash (not implemented in v1)");
@@ -336,7 +337,13 @@ export class AerReportService {
           if (at !== 0) return at;
           return a.id.localeCompare(b.id);
         });
-      const firstResponse = sortedResponses[0];
+      const completedResponses = sortedResponses.filter(
+        (response) => response.completion_status !== ResponseCompletionStatus.PARTIAL,
+      );
+      const partialResponses = sortedResponses.filter(
+        (response) => response.completion_status === ResponseCompletionStatus.PARTIAL,
+      );
+      const firstCompleted = completedResponses[0];
       const latestReview = assignmentResponses
         .filter((r) => r.reviewed_at)
         .slice()
@@ -346,10 +353,11 @@ export class AerReportService {
           return a.id.localeCompare(b.id);
         })
         .pop();
-      const completed = assignmentResponses.length > 0 ? 1 : 0;
+      const completed = completedResponses.length > 0 ? 1 : 0;
+      const partial = completed === 0 && partialResponses.length > 0 ? 1 : 0;
       const late =
-        completed && assignment.due_date && firstResponse
-          ? firstResponse.created_at > assignment.due_date
+        completed && assignment.due_date && firstCompleted
+          ? firstCompleted.created_at > assignment.due_date
             ? 1
             : 0
           : 0;
@@ -387,7 +395,7 @@ export class AerReportService {
           end: toIso(assignment.due_date),
         },
         completion_criteria: null,
-        completed_at: toIso(firstResponse?.created_at ?? null),
+        completed_at: toIso(firstCompleted?.created_at ?? null),
         reviewed_at: toIso(latestReview?.reviewed_at ?? null),
         reviewed_by: {
           user_id: latestReview?.reviewed_by?.user_id ?? null,
@@ -396,7 +404,7 @@ export class AerReportService {
         evidence_refs: sortedResponses.map((r) => r.id),
         status_summary: {
           completed,
-          partial: 0,
+          partial,
           missed,
           late,
         },
@@ -411,9 +419,10 @@ export class AerReportService {
         assignment?.due_date && response.created_at
           ? response.created_at > assignment.due_date
           : false;
+      const isPartial = response.completion_status === ResponseCompletionStatus.PARTIAL;
       adherence_timeline.push({
         ts: response.created_at.toISOString(),
-        type: "assignment_completed",
+        type: isPartial ? "assignment_partial" : "assignment_completed",
         source: "client",
         ref: { assignment_id: response.assignment_id, response_id: response.id },
         details: {

@@ -176,6 +176,16 @@ export default function DashboardPage() {
     return `${window.location.origin}/auth/accept-invite?token=${encodeURIComponent(clientInviteToken)}`;
   }, [clientInviteToken]);
 
+  const formatRate = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "—";
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const formatHours = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "—";
+    return `${value}h`;
+  };
+
   async function copyInvite(link: string | null, setter: (value: string | null) => void) {
     if (!link) return;
     try {
@@ -308,6 +318,34 @@ export default function DashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {data.engagementMetrics && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Engagement metrics (last {data.engagementMetrics.windowDays} days)</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-app-muted">
+                        <div className="flex items-center justify-between">
+                          <span>Assignment completion rate</span>
+                          <span className="text-app-text font-medium">
+                            {formatRate(data.engagementMetrics.assignmentCompletionRate)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Median time to completion</span>
+                          <span className="text-app-text font-medium">
+                            {formatHours(data.engagementMetrics.medianTimeToCompletionHours)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Overdue rate</span>
+                          <span className="text-app-text font-medium">
+                            {formatRate(data.engagementMetrics.overdueRate)}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
 
                 <div className="space-y-4">

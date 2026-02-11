@@ -74,6 +74,11 @@ enum SupervisorEscalationStatus {
   RESOLVED
 }
 
+enum ResponseCompletionStatus {
+  COMPLETED
+  PARTIAL
+}
+
 enum AiPurpose {
   DOCUMENTATION
   ADHERENCE_REVIEW
@@ -271,6 +276,7 @@ model responses {
   id                  String   @id @default(uuid()) @db.Uuid
   assignment_id       String   @db.Uuid
   client_id           String   @db.Uuid
+  completion_status   ResponseCompletionStatus @default(COMPLETED)
 
   // Client response (encrypted)
   mood                Int      @default(5)
@@ -639,6 +645,7 @@ model supervisor_escalations {
   reason                 SupervisorEscalationReason
   note                   String?
   created_by_user_id     String                     @db.Uuid
+  source_assignment_id   String?                    @db.Uuid
   assign_to_therapist_id String?                    @db.Uuid
   status                 SupervisorEscalationStatus @default(OPEN)
   created_at             DateTime                   @default(now())
@@ -647,6 +654,7 @@ model supervisor_escalations {
   @@index([clinic_id])
   @@index([client_id])
   @@index([created_by_user_id])
+  @@index([source_assignment_id])
   @@index([assign_to_therapist_id])
 }
 

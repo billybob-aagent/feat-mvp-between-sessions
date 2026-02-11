@@ -5,7 +5,11 @@ import { EmailService } from "../email/email.service";
 import { Prisma } from "@prisma/client";
 
 export type NotificationPayload = {
-  kind: "assignment_published" | "assignment_due_24h" | "assignment_manual_reminder";
+  kind:
+    | "assignment_published"
+    | "assignment_due_24h"
+    | "assignment_manual_reminder"
+    | "assignment_nudge_first";
   title: string;
   body: string;
   url?: string;

@@ -31,6 +31,7 @@ import { AiAssistModule } from './ai-assist/ai-assist.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { ReviewQueueModule } from './modules/review-queue/review-queue.module';
 import { TraceModule } from './modules/trace/trace.module';
+import { EngagementModule } from './modules/engagement/engagement.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { TraceModule } from './modules/trace/trace.module';
     MetricsModule,
     ReviewQueueModule,
     TraceModule,
+    EngagementModule,
   ],
   controllers: [AppController],
   providers: [

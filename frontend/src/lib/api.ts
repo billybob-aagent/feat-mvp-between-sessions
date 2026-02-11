@@ -414,6 +414,7 @@ export async function clientSubmitResponse(dto: {
   text: string;
   prompt?: string;
   voiceKey?: string;
+  completionStatus?: "partial" | "completed";
 }) {
   return apiPost("/responses/submit", dto);
 }

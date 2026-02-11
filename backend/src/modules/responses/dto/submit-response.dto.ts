@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min, MinLength } from "class-validator";
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min, MinLength } from "class-validator";
 
 export class SubmitResponseDto {
   @IsUUID()
@@ -21,4 +21,8 @@ export class SubmitResponseDto {
   @IsOptional()
   @IsString()
   voiceKey?: string;
+
+  @IsOptional()
+  @IsIn(["partial", "completed"])
+  completionStatus?: "partial" | "completed";
 }
