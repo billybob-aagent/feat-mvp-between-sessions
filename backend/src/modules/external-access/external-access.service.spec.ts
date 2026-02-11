@@ -139,6 +139,8 @@ describe("ExternalAccessService", () => {
   });
 
   it("uses token scope for report generation", async () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-02-05T00:00:00.000Z"));
+
     prismaMock.external_access_tokens.findFirst.mockResolvedValue({
       id: "token-4",
       clinic_id: "clinic-1",
@@ -161,6 +163,8 @@ describe("ExternalAccessService", () => {
     const call = aerReportMock.generateAerReport.mock.calls[0];
     expect(call[0]).toBe("clinic-1");
     expect(call[1]).toBe("client-1");
+
+    jest.useRealTimers();
   });
 
   it("caps ttl to 7 days", async () => {

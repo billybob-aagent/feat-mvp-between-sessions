@@ -13,6 +13,14 @@ export type ClinicDashboard = {
     responses: number;
     checkinsLast7d: number;
   };
+  engagementMetrics?: {
+    windowDays: number;
+    assignmentCompletionRate: number | null;
+    medianTimeToCompletionHours: number | null;
+    overdueRate: number | null;
+    assignmentCount: number;
+    assignmentsWithDueDate: number;
+  };
 };
 
 export type ClinicTherapistListItem = {

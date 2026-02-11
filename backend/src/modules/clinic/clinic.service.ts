@@ -7,7 +7,8 @@ import { CreateTherapistDto } from "./dto/create-therapist.dto";
 import { AuditService } from "../audit/audit.service";
 import * as argon2 from "argon2";
 import { randomUUID } from "crypto";
-import { InviteStatus, UserRole } from "@prisma/client";
+import { InviteStatus, ResponseCompletionStatus, UserRole } from "@prisma/client";
+import { summarizeEngagement } from "../engagement/engagement.utils";
 
 export type ClinicDashboardDto = {
   clinic: {
@@ -23,6 +24,14 @@ export type ClinicDashboardDto = {
     assignments: number;
     responses: number;
     checkinsLast7d: number;
+  };
+  engagementMetrics: {
+    windowDays: number;
+    assignmentCompletionRate: number | null;
+    medianTimeToCompletionHours: number | null;
+    overdueRate: number | null;
+    assignmentCount: number;
+    assignmentsWithDueDate: number;
   };
 };
 
@@ -166,6 +175,8 @@ export class ClinicService {
   async dashboard(userId: string): Promise<ClinicDashboardDto> {
     const { clinicId, clinic } = await this.requireClinicMembership(userId);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const metricsWindowDays = 30;
+    const metricsStart = new Date(Date.now() - metricsWindowDays * 24 * 60 * 60 * 1000);
 
     const [therapists, clients, assignments, responses, checkinsLast7d] =
       await Promise.all([
@@ -187,6 +198,89 @@ export class ClinicService {
         }),
       ]);
 
+    const metricAssignments = await this.prisma.assignments.findMany({
+      where: {
+        therapist: { clinic_id: clinicId },
+        created_at: { gte: metricsStart },
+      },
+      select: {
+        id: true,
+        created_at: true,
+        published_at: true,
+        due_date: true,
+      },
+    });
+
+    const metricAssignmentIds = metricAssignments.map((assignment) => assignment.id);
+    const metricResponses = metricAssignmentIds.length
+      ? await this.prisma.responses.findMany({
+          where: { assignment_id: { in: metricAssignmentIds } },
+          select: {
+            assignment_id: true,
+            created_at: true,
+            completion_status: true,
+          },
+        })
+      : [];
+
+    const responsesByAssignment = new Map<
+      string,
+      { createdAt: Date; completionStatus: ResponseCompletionStatus | null }[]
+    >();
+    for (const response of metricResponses) {
+      const list = responsesByAssignment.get(response.assignment_id) ?? [];
+      list.push({
+        createdAt: response.created_at,
+        completionStatus: response.completion_status,
+      });
+      responsesByAssignment.set(response.assignment_id, list);
+    }
+
+    const now = new Date();
+    const durations: number[] = [];
+    let completedAssignments = 0;
+    let overdueAssignments = 0;
+    let assignmentsWithDueDate = 0;
+
+    for (const assignment of metricAssignments) {
+      if (assignment.due_date) assignmentsWithDueDate += 1;
+      const summary = summarizeEngagement({
+        createdAt: assignment.created_at,
+        publishedAt: assignment.published_at,
+        dueDate: assignment.due_date,
+        responses: responsesByAssignment.get(assignment.id) ?? [],
+        clinicTimezone: clinic.timezone,
+        now,
+      });
+      if (summary.completedCount > 0 && summary.firstCompletedAt) {
+        completedAssignments += 1;
+        const startAt = summary.assignmentStartAt.getTime();
+        const completedAt = summary.firstCompletedAt.getTime();
+        durations.push(Math.max(0, (completedAt - startAt) / 3_600_000));
+      }
+      if (summary.state === "overdue") overdueAssignments += 1;
+    }
+
+    durations.sort((a, b) => a - b);
+    let medianTimeToCompletionHours: number | null = null;
+    if (durations.length > 0) {
+      const mid = Math.floor(durations.length / 2);
+      medianTimeToCompletionHours =
+        durations.length % 2 === 0
+          ? (durations[mid - 1] + durations[mid]) / 2
+          : durations[mid];
+      medianTimeToCompletionHours = Number(medianTimeToCompletionHours.toFixed(2));
+    }
+
+    const assignmentCompletionRate =
+      metricAssignments.length > 0
+        ? Number((completedAssignments / metricAssignments.length).toFixed(2))
+        : null;
+    const overdueRate =
+      assignmentsWithDueDate > 0
+        ? Number((overdueAssignments / assignmentsWithDueDate).toFixed(2))
+        : null;
+
     return {
       clinic: {
         id: clinic.id,
@@ -201,6 +295,14 @@ export class ClinicService {
         assignments,
         responses,
         checkinsLast7d,
+      },
+      engagementMetrics: {
+        windowDays: metricsWindowDays,
+        assignmentCompletionRate,
+        medianTimeToCompletionHours,
+        overdueRate,
+        assignmentCount: metricAssignments.length,
+        assignmentsWithDueDate,
       },
     };
   }

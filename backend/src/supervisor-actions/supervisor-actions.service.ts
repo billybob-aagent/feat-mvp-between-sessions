@@ -57,6 +57,7 @@ export class SupervisorActionsService {
     reason: SupervisorEscalationReason;
     note?: string | null;
     assignToTherapistId?: string | null;
+    sourceAssignmentId?: string | null;
     ip?: string;
     userAgent?: string;
   }) {
@@ -107,6 +108,21 @@ export class SupervisorActionsService {
       }
     }
 
+    const sourceAssignmentId = params.sourceAssignmentId?.trim() || null;
+    if (sourceAssignmentId) {
+      const assignment = await this.prisma.assignments.findUnique({
+        where: { id: sourceAssignmentId },
+        select: { id: true, client_id: true, therapist: { select: { clinic_id: true } } },
+      });
+      if (
+        !assignment ||
+        assignment.client_id !== params.clientId ||
+        assignment.therapist?.clinic_id !== params.clinicId
+      ) {
+        throw new BadRequestException("Source assignment not found for clinic");
+      }
+    }
+
     const escalation = await this.prisma.supervisor_escalations.create({
       data: {
         clinic_id: params.clinicId,
@@ -116,6 +132,7 @@ export class SupervisorActionsService {
         reason: params.reason,
         note: params.note?.trim() || null,
         created_by_user_id: params.userId,
+        source_assignment_id: sourceAssignmentId,
         assign_to_therapist_id: assignToTherapistId,
         status: SupervisorEscalationStatus.OPEN,
       },
@@ -371,6 +388,7 @@ export class SupervisorActionsService {
         id: row.id,
         clientId: row.client_id,
         therapistId: row.assign_to_therapist_id ?? null,
+        sourceAssignmentId: row.source_assignment_id ?? null,
         reason: row.reason,
         periodStart: formatDateOnly(dateOnlyPartsFromUTC(row.period_start)),
         periodEnd: formatDateOnly(dateOnlyPartsFromUTC(row.period_end)),

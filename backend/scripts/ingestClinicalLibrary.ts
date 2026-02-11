@@ -1,6 +1,6 @@
 import { PrismaClient, LibraryItemStatus } from "@prisma/client";
-import fs from "node:fs";
-import path from "node:path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import pdfParse from "pdf-parse";
 import {
   buildMetadata,

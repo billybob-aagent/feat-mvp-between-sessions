@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma, UserRole } from "@prisma/client";
+import { Prisma, ResponseCompletionStatus, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ResponsesService } from "../responses/responses.service";
+import { isHighRiskEngagement, summarizeEngagement } from "../engagement/engagement.utils";
 
 export type ReviewQueueItemDto = {
   id: string;
@@ -16,6 +17,9 @@ export type ReviewQueueItemDto = {
   flaggedAt: string | null;
   hasTherapistNote: boolean;
   feedbackCount: number;
+  engagementState: "pending" | "partial" | "completed" | "overdue";
+  engagementStateUpdatedAt: string | null;
+  engagementRisk: boolean;
 };
 
 export type ReviewQueueListDto = {
@@ -142,6 +146,65 @@ export class ReviewQueueService {
       },
     });
 
+    const assignmentIds = Array.from(new Set(rows.map((row) => row.assignment.id)));
+
+    const [assignments, responseRows, clinic] = await Promise.all([
+      this.prisma.assignments.findMany({
+        where: { id: { in: assignmentIds } },
+        select: {
+          id: true,
+          created_at: true,
+          published_at: true,
+          due_date: true,
+        },
+      }),
+      this.prisma.responses.findMany({
+        where: { assignment_id: { in: assignmentIds } },
+        select: {
+          assignment_id: true,
+          created_at: true,
+          completion_status: true,
+        },
+      }),
+      this.prisma.clinics.findUnique({
+        where: { id: clinicId },
+        select: { timezone: true },
+      }),
+    ]);
+
+    const responsesByAssignment = new Map<
+      string,
+      { createdAt: Date; completionStatus: ResponseCompletionStatus | null }[]
+    >();
+    for (const response of responseRows) {
+      const list = responsesByAssignment.get(response.assignment_id) ?? [];
+      list.push({ createdAt: response.created_at, completionStatus: response.completion_status });
+      responsesByAssignment.set(response.assignment_id, list);
+    }
+
+    const clinicTimezone = clinic?.timezone ?? "UTC";
+    const now = new Date();
+    const engagementByAssignment = new Map<
+      string,
+      { state: ReviewQueueItemDto["engagementState"]; updatedAt: string | null; risk: boolean }
+    >();
+
+    for (const assignment of assignments) {
+      const summary = summarizeEngagement({
+        createdAt: assignment.created_at,
+        publishedAt: assignment.published_at,
+        dueDate: assignment.due_date,
+        responses: responsesByAssignment.get(assignment.id) ?? [],
+        clinicTimezone,
+        now,
+      });
+      engagementByAssignment.set(assignment.id, {
+        state: summary.state,
+        updatedAt: summary.stateChangedAt ? summary.stateChangedAt.toISOString() : null,
+        risk: isHighRiskEngagement({ summary }),
+      });
+    }
+
     const items: ReviewQueueItemDto[] = rows.map((row) => ({
       id: row.id,
       assignmentId: row.assignment.id,
@@ -155,9 +218,21 @@ export class ReviewQueueService {
       flaggedAt: row.flagged_at ? row.flagged_at.toISOString() : null,
       hasTherapistNote: Boolean(row.therapist_note_cipher),
       feedbackCount: row._count.feedback,
+      engagementState: engagementByAssignment.get(row.assignment.id)?.state ?? "pending",
+      engagementStateUpdatedAt: engagementByAssignment.get(row.assignment.id)?.updatedAt ?? null,
+      engagementRisk: engagementByAssignment.get(row.assignment.id)?.risk ?? false,
     }));
 
+    const statePriority: Record<ReviewQueueItemDto["engagementState"], number> = {
+      overdue: 0,
+      partial: 1,
+      pending: 2,
+      completed: 3,
+    };
+
     items.sort((a, b) => {
+      const stateDiff = statePriority[a.engagementState] - statePriority[b.engagementState];
+      if (stateDiff !== 0) return stateDiff;
       const aNeeds = a.reviewedAt ? 1 : 0;
       const bNeeds = b.reviewedAt ? 1 : 0;
       if (aNeeds !== bNeeds) return aNeeds - bNeeds;

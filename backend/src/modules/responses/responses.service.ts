@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, ResponseCompletionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AesGcm } from "../../common/crypto/aes-gcm";
 import { AuditService } from "../audit/audit.service";
@@ -115,7 +115,14 @@ export class ResponsesService {
   // Client submits encrypted response
   async submit(
     userId: string,
-    dto: { assignmentId: string; text: string; mood: number; prompt?: string; voiceKey?: string },
+    dto: {
+      assignmentId: string;
+      text: string;
+      mood: number;
+      prompt?: string;
+      voiceKey?: string;
+      completionStatus?: "partial" | "completed";
+    },
   ): Promise<SubmitResponseResultDto> {
     const client = await this.prisma.clients.findFirst({
       where: { user_id: userId },
@@ -140,11 +147,17 @@ export class ResponsesService {
     const promptTrimmed = dto.prompt?.trim();
     const promptEnc = promptTrimmed ? aes.encrypt(promptTrimmed) : null;
 
+    const completionStatus =
+      dto.completionStatus?.toLowerCase() === "partial"
+        ? ResponseCompletionStatus.PARTIAL
+        : ResponseCompletionStatus.COMPLETED;
+
     const created = await this.prisma.responses.create({
       data: {
         assignment_id: assignment.id,
         client_id: client.id,
         mood: dto.mood,
+        completion_status: completionStatus,
         text_cipher: enc.cipher,
         text_nonce: enc.nonce,
         text_tag: enc.tag,

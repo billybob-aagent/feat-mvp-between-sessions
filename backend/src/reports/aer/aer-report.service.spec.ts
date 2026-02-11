@@ -1,4 +1,5 @@
 import { AerReportService } from "./aer-report.service";
+import { ResponseCompletionStatus } from "@prisma/client";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -71,6 +72,7 @@ describe("AerReportService", () => {
         assignment_id: "a1",
         created_at: new Date("2026-01-09T09:00:00.000Z"),
         mood: 5,
+        completion_status: ResponseCompletionStatus.COMPLETED,
         reviewed_at: null,
         reviewed_by: null,
         flagged_at: null,
@@ -81,6 +83,7 @@ describe("AerReportService", () => {
         assignment_id: "a2",
         created_at: new Date("2026-01-25T09:00:00.000Z"),
         mood: 7,
+        completion_status: ResponseCompletionStatus.COMPLETED,
         reviewed_at: new Date("2026-01-26T10:00:00.000Z"),
         reviewed_by: { user_id: "therapist-1", full_name: "Therapist One" },
         flagged_at: null,
@@ -167,6 +170,77 @@ describe("AerReportService", () => {
 
     expect(report.noncompliance_escalations).toHaveLength(1);
     expect(report.noncompliance_escalations[0].type).toBe("reminder");
+  });
+
+  it("marks partial responses deterministically", async () => {
+    seedMocks();
+    prismaMock.responses.findMany.mockResolvedValue([
+      {
+        id: "r1",
+        assignment_id: "a1",
+        created_at: new Date("2026-01-09T09:00:00.000Z"),
+        mood: 5,
+        completion_status: ResponseCompletionStatus.PARTIAL,
+        reviewed_at: null,
+        reviewed_by: null,
+        flagged_at: null,
+        starred_at: null,
+      },
+      {
+        id: "r2",
+        assignment_id: "a2",
+        created_at: new Date("2026-01-25T09:00:00.000Z"),
+        mood: 7,
+        completion_status: ResponseCompletionStatus.COMPLETED,
+        reviewed_at: new Date("2026-01-26T10:00:00.000Z"),
+        reviewed_by: { user_id: "therapist-1", full_name: "Therapist One" },
+        flagged_at: null,
+        starred_at: null,
+      },
+    ]);
+
+    const start = new Date("2026-01-01T00:00:00.000Z");
+    const end = new Date("2026-01-31T23:59:59.999Z");
+
+    const first = await service.generateAerReport(
+      "clinic-1",
+      "client-1",
+      start,
+      end,
+      undefined,
+      {
+        periodStartLabel: "2026-01-01",
+        periodEndLabel: "2026-01-31",
+        generatedAtOverride: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    );
+
+    const second = await service.generateAerReport(
+      "clinic-1",
+      "client-1",
+      start,
+      end,
+      undefined,
+      {
+        periodStartLabel: "2026-01-01",
+        periodEndLabel: "2026-01-31",
+        generatedAtOverride: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    );
+
+    expect(first).toEqual(second);
+
+    const assignmentOne = first.prescribed_interventions.find(
+      (entry) => entry.assignment_id === "a1",
+    );
+    expect(assignmentOne?.status_summary.completed).toBe(0);
+    expect(assignmentOne?.status_summary.partial).toBe(1);
+    expect(assignmentOne?.completed_at).toBe(null);
+
+    const partialEvent = first.adherence_timeline.find(
+      (entry) => entry.ref.response_id === "r1",
+    );
+    expect(partialEvent?.type).toBe("assignment_partial");
   });
 
   it("returns identical report outputs for identical inputs", async () => {
