@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMe } from "@/lib/use-me";
-import { apiDownload, libraryCollections, libraryListSignatureRequests } from "@/lib/api";
+import { apiDownload, apiFetch, libraryCollections, libraryListSignatureRequests } from "@/lib/api";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 import type { LibraryCollection, LibrarySignatureRequestListItem, LibrarySignatureRequestListResponse } from "@/lib/types/library";
 import { PageLayout } from "@/components/page/PageLayout";
@@ -34,6 +34,9 @@ export default function LibraryHomePage() {
   const [assigned, setAssigned] = useState<LibrarySignatureRequestListItem[]>([]);
   const [assignedLoading, setAssignedLoading] = useState(false);
   const [assignedError, setAssignedError] = useState<string | null>(null);
+  const [starterLoading, setStarterLoading] = useState(false);
+  const [starterStatus, setStarterStatus] = useState<string | null>(null);
+  const [starterError, setStarterError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +68,39 @@ export default function LibraryHomePage() {
       setAssignedLoading(false);
     }
   }, [isClient]);
+
+  async function ingestStarterPack() {
+    if (!canReview) return;
+    if (isAdmin && !clinicIdForRequest) {
+      setStarterError("Clinic ID is required for admin requests.");
+      return;
+    }
+    setStarterLoading(true);
+    setStarterError(null);
+    setStarterStatus(null);
+    try {
+      const payload = isAdmin ? { clinicId: clinicIdForRequest } : {};
+      const data = await apiFetch<{
+        ok: boolean;
+        created_items: number;
+        updated_items: number;
+        skipped_same_checksum: number;
+      }>("/library/admin/ingest-starter-pack", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const total =
+        (data.created_items || 0) +
+        (data.updated_items || 0) +
+        (data.skipped_same_checksum || 0);
+      setStarterStatus(`Starter pack ingested. ${total} items processed.`);
+      await load();
+    } catch (err) {
+      setStarterError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStarterLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (isAdmin && !clinicIdForRequest) {
@@ -178,6 +214,43 @@ export default function LibraryHomePage() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canReview && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Starter Library Pack v1</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-app-muted">
+              Ingest the self-authored starter pack into this clinic&apos;s library as DRAFT items.
+              Admin approval is still required before publishing.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={ingestStarterPack}
+                isLoading={starterLoading}
+                disabled={starterLoading || (isAdmin && !clinicIdForRequest)}
+              >
+                Ingest starter pack (server)
+              </Button>
+              {isAdmin && !clinicIdForRequest ? (
+                <span className="text-xs text-app-muted">Enter a clinic ID to ingest.</span>
+              ) : null}
+            </div>
+            {starterStatus && (
+              <Alert variant="success" title="Starter pack ingested">
+                {starterStatus}
+              </Alert>
+            )}
+            {starterError && (
+              <Alert variant="warning" title="Unable to ingest starter pack">
+                {starterError}
+              </Alert>
             )}
           </CardContent>
         </Card>

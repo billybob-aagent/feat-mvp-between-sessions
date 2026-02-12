@@ -1,0 +1,41 @@
+{
+  "title": "Stress Response Basics",
+  "slug": "stress-response-basics",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "STRESS"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 15,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 15 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nStress prepares the body for action. The same system can stay activated even when danger has passed.\n\n### Why it matters\n- Naming stress responses reduces self-blame.\n- Short resets can calm the body.\n\n### Try this\n- Notice one body signal of stress.\n- Use a 3-minute reset today.\n\n### Common traps\n- Pushing through without breaks.\n- Judging yourself for feeling stressed."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

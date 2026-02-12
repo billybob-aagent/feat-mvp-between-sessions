@@ -1,0 +1,41 @@
+{
+  "title": "Emotions as Information",
+  "slug": "emotions-as-information",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "CBT"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nEmotions are signals, not commands. They can guide choices without deciding them for us.\n\n### Why it matters\n- Labeling emotions increases clarity.\n- Balanced choices reduce regret.\n\n### Try this\n- Name the emotion and its message.\n- Choose a response that aligns with values.\n\n### Common traps\n- Ignoring emotions completely.\n- Letting emotions drive every decision."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "title": "Sleep and Mood Basics",
+  "slug": "sleep-and-mood-basics",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "SLEEP",
+    "DEPRESSION"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 20,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 20 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nSleep and mood influence each other. Poor sleep can lower patience and increase sensitivity to stress.\n\n### Why it matters\n- Better sleep supports emotion regulation.\n- Small changes compound quickly.\n\n### Try this\n- Pick one sleep habit to improve this week.\n- Track how mood shifts.\n\n### Common traps\n- Trying to fix everything in one night.\n- Staying in bed while wide awake."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

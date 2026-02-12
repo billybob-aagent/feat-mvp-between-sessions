@@ -77,6 +77,20 @@ export class LibraryController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.admin, UserRole.CLINIC_ADMIN)
+  @Post("admin/ingest-starter-pack")
+  async ingestStarterPack(
+    @Req() req: any,
+    @Body() body: { clinicId?: string },
+  ) {
+    return this.library.ingestStarterPack(
+      req.user.userId,
+      req.user.role,
+      body?.clinicId ?? null,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.therapist, UserRole.admin, UserRole.CLINIC_ADMIN)
   @Post("items")
   async createItem(@Req() req: any, @Body() dto: CreateLibraryItemDto) {

@@ -1,0 +1,42 @@
+{
+  "title": "Values vs Goals",
+  "slug": "values-vs-goals",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "VALUES",
+    "GOALS"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 10,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 10 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nValues are directions; goals are milestones. Values help you choose goals that feel meaningful.\n\n### Why it matters\n- Values-based goals sustain motivation.\n- Clarity reduces drift.\n\n### Try this\n- Write one value that matters most now.\n- Set a small goal that supports it.\n\n### Common traps\n- Chasing goals that do not match values.\n- Setting goals too large to start."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

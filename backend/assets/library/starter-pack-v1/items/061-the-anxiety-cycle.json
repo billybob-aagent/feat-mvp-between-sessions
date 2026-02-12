@@ -1,0 +1,42 @@
+{
+  "title": "The Anxiety Cycle",
+  "slug": "the-anxiety-cycle",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "ANXIETY",
+    "CBT"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nAnxiety grows when we avoid or escape feared situations. Avoidance brings short-term relief but teaches the brain the situation is dangerous.\n\n### Why it matters\n- Understanding the cycle helps reduce avoidance.\n- Small exposures build confidence over time.\n\n### Try this\n- Name one avoided situation.\n- Choose one tiny step toward it this week.\n\n### Common traps\n- Waiting for anxiety to be zero before acting.\n- Taking on a step that is too large."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "title": "Build Positive Moments",
+  "slug": "build-positive-moments",
+  "contentType": "WORKSHEET",
+  "clinicalTags": [
+    "DBT",
+    "EMOTION_REGULATION",
+    "DISTRESS_TOLERANCE",
+    "MINDFULNESS"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 20,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 20 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Practice the skill at least once before session."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Skill focus\n- Skill: positive moments\n\n### Practice steps\n1. List two small enjoyable activities.\n2. Schedule them on specific days.\n3. Notice the emotion before and after.\n\n### Try it in a real moment\n- When will I practice? ______\n- Where? ______\n- What might get in the way? ______\n- What will help? ______\n\n### Reflection\n- What did I notice? ______\n- What helped most? ______"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Reinforce any use of the skill, even brief attempts.\n- Emphasize choice points and self-validation."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

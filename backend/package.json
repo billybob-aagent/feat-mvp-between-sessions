@@ -11,6 +11,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
     "ingest:clinical-library": "ts-node scripts/ingestClinicalLibrary.ts",
+    "library:seed:starter": "ts-node scripts/ingest_starter_library.ts",
     "pilot:seed": "ts-node scripts/pilot_seed.ts",
     "engagement:cycle": "ts-node scripts/engagement_cycle.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

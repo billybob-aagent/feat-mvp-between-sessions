@@ -1,0 +1,41 @@
+{
+  "title": "Sleep Consistency Tips",
+  "slug": "sleep-consistency-tips",
+  "contentType": "HANDOUT",
+  "clinicalTags": [
+    "SLEEP"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 10,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 10 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read once, then pick one idea to try."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Consistency for sleep\n#### Key points\n- Keep wake time consistent.\n- Use light exposure in the morning.\n- Reduce stimulation before bed.\n\n#### Try this week\n- Choose one sleep habit to change this week."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Invite the client to choose one experiment for the week.\n- Link the handout to treatment goals and progress tracking."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

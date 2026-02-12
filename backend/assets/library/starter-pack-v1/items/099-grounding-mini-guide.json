@@ -1,0 +1,42 @@
+{
+  "title": "Grounding Mini Guide",
+  "slug": "grounding-mini-guide",
+  "contentType": "HANDOUT",
+  "clinicalTags": [
+    "TRAUMA",
+    "ANXIETY"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read once, then pick one idea to try."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Grounding in the present\n#### Key points\n- Use the senses to anchor attention.\n- Slow breathing helps reset the body.\n\n#### Try this week\n- Try a 5-4-3-2-1 scan.\n- Pair with a slow exhale."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Invite the client to choose one experiment for the week.\n- Link the handout to treatment goals and progress tracking."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

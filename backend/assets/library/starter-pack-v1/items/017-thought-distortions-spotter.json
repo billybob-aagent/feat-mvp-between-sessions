@@ -1,0 +1,41 @@
+{
+  "title": "Thought Distortions Spotter",
+  "slug": "thought-distortions-spotter",
+  "contentType": "WORKSHEET",
+  "clinicalTags": [
+    "CBT"
+  ],
+  "populations": [
+    "ADOLESCENT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Focus on one recent situation."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Focus\n- Topic: thinking traps\n\n### Situation snapshot\n- What happened? ______\n- Where/when? ______\n- Who was involved? ______\n\n### Thoughts and feelings\n- Automatic thoughts: ______\n- Feelings (0-10): ______\n- Body signals: ______\n\n### Balanced view\n- Evidence for the thought: ______\n- Evidence against the thought: ______\n- A more balanced thought: ______\n\n### Next step\n- One small action I can try: ______"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Track patterns in thoughts and link them to behaviors.\n- If avoidance is present, break actions into smaller steps."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "title": "Healthy Boundaries Quick Guide",
+  "slug": "healthy-boundaries-quick-guide",
+  "contentType": "HANDOUT",
+  "clinicalTags": [
+    "BOUNDARIES"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 20,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 20 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read once, then pick one idea to try."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Boundary basics\n#### Key points\n- Boundaries are about your choices.\n- Consistency builds trust.\n- Clear language reduces confusion.\n\n#### Try this week\n- Write one boundary statement.\n- Practice saying it out loud."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Invite the client to choose one experiment for the week.\n- Link the handout to treatment goals and progress tracking."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

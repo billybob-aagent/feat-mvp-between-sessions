@@ -1,0 +1,43 @@
+{
+  "title": "Craving Log",
+  "slug": "craving-log",
+  "contentType": "WORKSHEET",
+  "clinicalTags": [
+    "SUD",
+    "RELAPSE_PREVENTION",
+    "MI"
+  ],
+  "populations": [
+    "ADOLESCENT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Use this when cravings or high-risk moments show up."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Trigger snapshot\n- Trigger or cue: a recent craving\n- Situation details: ______\n- Craving level (0-10): ______\n- Thoughts: ______\n- Feelings: ______\n\n### Coping plan\n- Delay plan (5-10 minutes): ______\n- Skill or distraction to try: ______\n- Support person to contact: ______\n\n### Protect the next 24 hours\n- What I will avoid: ______\n- What I will do instead: ______"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Help the client identify early cues and rehearse the delay plan.\n- Anchor choices to recovery values and support systems."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

@@ -22,6 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import { assertPublishable, buildChunks, normalizeMetadata, normalizeSections } from "./library.utils";
+import { ingestStarterPack } from "./starter-pack/ingest-starter-pack";
 
 type ResolvedClinic = {
   clinicId: string;
@@ -1255,6 +1256,20 @@ export class LibraryService {
       status: "signed",
       pdfSnapshotRef: pdfPath,
     };
+  }
+
+  async ingestStarterPack(
+    userId: string,
+    role: UserRole,
+    clinicIdOverride: string | null,
+  ) {
+    const { clinicId } = await this.resolveClinicContext(userId, role, clinicIdOverride);
+    return ingestStarterPack({
+      prisma: this.prisma as any,
+      clinicId,
+      userId,
+      actorRole: role,
+    });
   }
 
   async streamSignaturePdf(

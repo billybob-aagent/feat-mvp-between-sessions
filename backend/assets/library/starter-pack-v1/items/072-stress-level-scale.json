@@ -1,0 +1,48 @@
+{
+  "title": "Stress Level Scale",
+  "slug": "stress-level-scale",
+  "contentType": "MEASURE",
+  "clinicalTags": [
+    "STRESS"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Rate based on the past 7 days."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### How to rate\nUse 0 (not at all) to 4 (very much).\n\n### Items\n1. My body felt tense.\n2. My thoughts felt rushed.\n3. I felt overwhelmed by tasks.\n\nTotal score: ______ (0-12)"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- This is a self-rating tool, not a diagnosis.\n- Scoring: sum items for a 0-12 range.\n- Use trend over time rather than a single score."
+    }
+  ],
+  "measure": {
+    "isMeasure": true,
+    "scoring": {
+      "type": "SUM",
+      "range": {
+        "min": 0,
+        "max": 12
+      },
+      "rulesMarkdown": "Sum the item scores. Track changes over time; this is not diagnostic."
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "title": "Micro-Break Schedule",
+  "slug": "micro-break-schedule",
+  "contentType": "WORKSHEET",
+  "clinicalTags": [
+    "SLEEP",
+    "STRESS",
+    "ANXIETY"
+  ],
+  "populations": [
+    "ADOLESCENT"
+  ],
+  "minutes": 15,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 15 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Complete once per day for one week."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Micro-break schedule\n- Target bedtime: ______\n- Wake time: ______\n- Wind-down start time: ______\n\n### Habits check\n- Caffeine cutoff time: ______\n- Screen-off time: ______\n- Movement today: ______\n\n### Stress reset\n- One 3-minute reset I will use: ______\n- If I wake at night, I will: ______"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Review patterns and adjust one habit at a time.\n- Encourage realistic targets to reduce all-or-nothing thinking."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

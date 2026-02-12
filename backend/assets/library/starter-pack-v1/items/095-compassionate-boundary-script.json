@@ -1,0 +1,41 @@
+{
+  "title": "Compassionate Boundary Script",
+  "slug": "compassionate-boundary-script",
+  "contentType": "PROMPT",
+  "clinicalTags": [
+    "BOUNDARIES"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 5,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 5 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Answer with bullet points or short sentences."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### Reflection prompts\n- What boundary do I need right now?\n- How can I state it kindly?\n- What is the follow-up if it is ignored?\n\n### Action prompt\n- One small step I will take this week: ______"
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Use responses to co-create a brief action plan.\n- Highlight strengths and reinforce follow-through."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "title": "How Habits Form",
+  "slug": "how-habits-form",
+  "contentType": "PSYCHOED",
+  "clinicalTags": [
+    "CBT",
+    "GOALS"
+  ],
+  "populations": [
+    "ADULT"
+  ],
+  "minutes": 10,
+  "clientSafe": true,
+  "language": "en",
+  "license": {
+    "type": "SELF_AUTHORED",
+    "sourceName": "Between Sessions Starter Pack v1",
+    "sourceUrl": null,
+    "publicDomainNotice": null
+  },
+  "sections": [
+    {
+      "kind": "INSTRUCTIONS",
+      "title": "Instructions",
+      "markdown": "- Set aside about 10 minutes in a quiet spot.\n- Use short phrases; complete sentences are optional.\n- If a prompt does not fit, skip it and move on.\n- Read through once, then summarize in your own words."
+    },
+    {
+      "kind": "CONTENT",
+      "title": "Client worksheet",
+      "markdown": "### What this is\nHabits follow a cue, routine, and reward. Changing the routine while keeping the cue and reward is often the easiest path.\n\n### Why it matters\n- Habit maps make change more predictable.\n- Small swaps are easier to sustain.\n\n### Try this\n- Identify one cue that starts a habit.\n- Replace the routine with a smaller, healthier step.\n\n### Common traps\n- Trying to change too many habits at once.\n- Ignoring the reward that keeps the habit going."
+    },
+    {
+      "kind": "CLINICIAN_NOTES",
+      "title": "Clinician notes",
+      "markdown": "- Draft-only, clinician review required.\n- Invite the client to share highlights in session and reinforce skill use.\n- Check for understanding and reinforce one takeaway.\n- Pair with a practical exercise when possible."
+    }
+  ],
+  "measure": {
+    "isMeasure": false,
+    "scoring": null
+  }
+}
