@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-export type Me = { userId: string; role: "therapist" | "client" | "CLINIC_ADMIN" | "admin" | string };
+export type Me = {
+  userId: string;
+  role: "therapist" | "client" | "CLINIC_ADMIN" | "admin" | string;
+  clinicId?: string | null;
+};
 
 type CacheState = {
   value: Me | null | undefined;

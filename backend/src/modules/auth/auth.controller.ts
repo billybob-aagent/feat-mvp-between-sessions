@@ -3,6 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { AuthService } from "./auth.service";
 import { AuditService } from "../audit/audit.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 import { LoginDto } from "./login.dto";
@@ -24,7 +25,36 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly audit: AuditService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  private async resolveClinicId(userId: string, role: string): Promise<string | null> {
+    if (role === "CLINIC_ADMIN") {
+      const membership = await this.prisma.clinic_memberships.findFirst({
+        where: { user_id: userId },
+        select: { clinic_id: true },
+      });
+      return membership?.clinic_id ?? null;
+    }
+
+    if (role === "therapist") {
+      const therapist = await this.prisma.therapists.findFirst({
+        where: { user_id: userId },
+        select: { clinic_id: true },
+      });
+      return therapist?.clinic_id ?? null;
+    }
+
+    if (role === "client") {
+      const client = await this.prisma.clients.findFirst({
+        where: { user_id: userId },
+        select: { therapist: { select: { clinic_id: true } } },
+      });
+      return client?.therapist?.clinic_id ?? null;
+    }
+
+    return null;
+  }
 
   @Post("register/therapist")
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -176,10 +206,12 @@ export class AuthController {
   @Get("me")
   async me(@Req() req: any) {
     // JwtStrategy.validate returns { userId, role }
+    const clinicId = await this.resolveClinicId(req.user.userId, req.user.role).catch(() => null);
     return {
       authenticated: true,
       userId: req.user.userId,
       role: req.user.role,
+      clinicId,
     };
   }
 }

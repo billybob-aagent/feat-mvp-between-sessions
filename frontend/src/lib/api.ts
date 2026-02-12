@@ -407,6 +407,31 @@ export function pilotMetrics(params: { clinicId: string; start: string; end: str
   return apiGet(`/metrics/pilot/${encodeURIComponent(params.clinicId)}?${qs.toString()}`);
 }
 
+// ---- Review-to-Revenue Metrics ----
+export function reviewMetricsClinic(params: { clinicId: string; start: string; end: string }) {
+  const qs = new URLSearchParams({ start: params.start, end: params.end });
+  return apiGet(`/metrics/clinic/${encodeURIComponent(params.clinicId)}?${qs.toString()}`);
+}
+
+export function reviewMetricsTherapist(params: { clinicId: string; start: string; end: string }) {
+  const qs = new URLSearchParams({ start: params.start, end: params.end });
+  return apiGet(`/metrics/therapist/${encodeURIComponent(params.clinicId)}?${qs.toString()}`);
+}
+
+export function reviewMetricsClinicSeries(params: {
+  clinicId: string;
+  start: string;
+  end: string;
+  bucket: "day" | "week";
+}) {
+  const qs = new URLSearchParams({
+    start: params.start,
+    end: params.end,
+    bucket: params.bucket,
+  });
+  return apiGet(`/metrics/clinic/${encodeURIComponent(params.clinicId)}/series?${qs.toString()}`);
+}
+
 // ---- Responses ----
 export async function clientSubmitResponse(dto: {
   assignmentId: string;
