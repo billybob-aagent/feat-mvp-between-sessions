@@ -13,9 +13,23 @@ import { RegisterClinicDto } from "./register-clinic.dto";
 import { RegisterClinicTherapistDto } from "./register-clinic-therapist.dto";
 
 function baseCookieOptions() {
+  const envOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const isProd = process.env.NODE_ENV === "production";
+  const isLocalOrigin =
+    envOrigins.length > 0 &&
+    envOrigins.every((origin) =>
+      origin.includes("localhost") || origin.includes("127.0.0.1"),
+    );
+  const sameSite = isProd && !isLocalOrigin ? ("none" as const) : ("lax" as const);
+  const secure = isProd && sameSite === "none";
+
   return {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite,
+    secure,
     path: "/",
   };
 }
