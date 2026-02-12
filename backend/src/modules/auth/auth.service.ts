@@ -277,15 +277,24 @@ export class AuthService {
     role: UserRole,
     existingRefreshToken?: string,
   ) {
+    const accessSecret =
+      process.env.JWT_ACCESS_SECRET ||
+      process.env.JWT_SECRET ||
+      "dev-secret";
+    const refreshSecret =
+      process.env.JWT_REFRESH_SECRET ||
+      process.env.JWT_SECRET ||
+      "dev-secret";
+
     const access = await this.jwt.signAsync(
       { sub: userId, role, type: "access" },
-      { expiresIn: "15m" },
+      { expiresIn: "15m", secret: accessSecret },
     );
 
     // ✅ Make refresh token unique every time
     const refresh = await this.jwt.signAsync(
       { sub: userId, role, type: "refresh", jti: randomUUID() },
-      { expiresIn: "7d" },
+      { expiresIn: "7d", secret: refreshSecret },
     );
 
     if (existingRefreshToken) {
@@ -313,7 +322,11 @@ export class AuthService {
 
     let payload: any;
     try {
-      payload = await this.jwt.verifyAsync(refreshToken);
+      const refreshSecret =
+        process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET ||
+        "dev-secret";
+      payload = await this.jwt.verifyAsync(refreshToken, { secret: refreshSecret });
     } catch {
       throw new UnauthorizedException();
     }

@@ -205,13 +205,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get("me")
   async me(@Req() req: any) {
-    // JwtStrategy.validate returns { userId, role }
-    const clinicId = await this.resolveClinicId(req.user.userId, req.user.role).catch(() => null);
+    const resolvedClinicId =
+      req.user?.clinicId ??
+      (await this.resolveClinicId(req.user.userId, req.user.role).catch(() => null));
     return {
       authenticated: true,
       userId: req.user.userId,
       role: req.user.role,
-      clinicId,
+      clinicId: resolvedClinicId,
     };
   }
 }
