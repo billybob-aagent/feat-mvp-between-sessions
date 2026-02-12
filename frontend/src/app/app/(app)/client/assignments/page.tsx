@@ -32,6 +32,34 @@ type ClientAssignmentRow = {
   } | null;
 };
 
+type ClientResponseListItem = {
+  id: string;
+  assignmentId: string;
+  createdAt: string | null;
+  reviewedAt: string | null;
+  flaggedAt: string | null;
+  mood: number;
+};
+
+function toUtcDateKey(value: string | Date | null | undefined) {
+  if (!value) return null;
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function compareDueDate(a: string | null, b: string | null) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const aTime = new Date(a).getTime();
+  const bTime = new Date(b).getTime();
+  if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+  if (Number.isNaN(aTime)) return 1;
+  if (Number.isNaN(bTime)) return -1;
+  return aTime - bTime;
+}
+
 export default function ClientAssignmentsPage() {
   const router = useRouter();
   const { me, loading: sessionLoading } = useMe();
@@ -42,6 +70,8 @@ export default function ClientAssignmentsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(20);
+  const [startingCheckin, setStartingCheckin] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 300);
 
   const loadFirstPage = useCallback(async () => {
@@ -109,6 +139,108 @@ export default function ClientAssignmentsPage() {
     return { active, submitted, reviewed, dueSoon };
   }, [items]);
 
+  const latestReviewedAssignment = useMemo(() => {
+    const reviewed = items.filter((item) => item.lastReviewedAt);
+    if (reviewed.length === 0) return null;
+    return reviewed
+      .slice()
+      .sort((a, b) => {
+        const aTime = new Date(a.lastReviewedAt as string).getTime();
+        const bTime = new Date(b.lastReviewedAt as string).getTime();
+        return bTime - aTime;
+      })[0];
+  }, [items]);
+
+  const startDisabledReason =
+    sessionLoading || loading
+      ? "Loading assignments..."
+      : me?.role !== "client"
+        ? "Client-only action."
+        : items.length === 0
+          ? "No active assignments yet."
+          : null;
+
+  const feedbackDisabledReason =
+    sessionLoading || loading
+      ? "Loading assignments..."
+      : !latestReviewedAssignment
+        ? "No reviewed evidence yet."
+        : null;
+
+  async function handleStartToday() {
+    if (startDisabledReason || startingCheckin) return;
+    setStartingCheckin(true);
+    setStatus(null);
+    try {
+      const data = (await apiFetch(
+        "/assignments/mine?limit=50",
+      )) as { items: ClientAssignmentRow[]; nextCursor: string | null };
+      const list = Array.isArray(data?.items) ? data.items : [];
+      if (list.length === 0) {
+        setStatus("No active assignments yet.");
+        return;
+      }
+
+      const target = list.slice().sort((a, b) => compareDueDate(a.dueDate, b.dueDate))[0];
+
+      const responses = (await apiFetch(
+        `/responses/client/assignment/${encodeURIComponent(target.id)}`,
+      )) as ClientResponseListItem[];
+      const todayKey = toUtcDateKey(new Date());
+      const hasToday = (Array.isArray(responses) ? responses : []).some(
+        (row) => toUtcDateKey(row.createdAt) === todayKey,
+      );
+
+      if (hasToday) {
+        setStatus("Today’s check-in already exists. Opening it now.");
+      }
+
+      router.push(`/app/checkins/${encodeURIComponent(target.id)}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+    } finally {
+      setStartingCheckin(false);
+    }
+  }
+
+  async function handleGiveFeedback() {
+    if (feedbackDisabledReason || feedbackLoading) return;
+    setFeedbackLoading(true);
+    setStatus(null);
+    try {
+      if (!latestReviewedAssignment) {
+        setStatus("No reviewed evidence yet.");
+        return;
+      }
+
+      const responses = (await apiFetch(
+        `/responses/client/assignment/${encodeURIComponent(latestReviewedAssignment.id)}`,
+      )) as ClientResponseListItem[];
+      const reviewed = (Array.isArray(responses) ? responses : []).filter((row) => row.reviewedAt);
+      if (reviewed.length === 0) {
+        setStatus("No reviewed evidence yet.");
+        return;
+      }
+      reviewed.sort((a, b) => {
+        const aTime = new Date(a.reviewedAt as string).getTime();
+        const bTime = new Date(b.reviewedAt as string).getTime();
+        return bTime - aTime;
+      });
+      const latest = reviewed[0];
+
+      const qs = new URLSearchParams();
+      if (me?.clinicId) qs.set("clinicId", me.clinicId);
+      qs.set("responseId", latest.id);
+      router.push(`/app/ai/adherence-assist?${qs.toString()}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }
+
   return (
     <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
       <section className="rounded-2xl border border-app-border bg-app-surface-2 p-6 shadow-soft">
@@ -126,25 +258,45 @@ export default function ClientAssignmentsPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* TODO: wire daily check-in flow to POST /api/v1/checkins/submit */}
-            <Tooltip label="Coming soon">
-              <span className="inline-flex">
-                <Button variant="secondary" disabled>
-                  Start Today&apos;s Check-in
-                </Button>
-              </span>
-            </Tooltip>
+            {startDisabledReason ? (
+              <Tooltip label={startDisabledReason}>
+                <span className="inline-flex">
+                  <Button variant="secondary" disabled>
+                    Start Today&apos;s Check-in
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={handleStartToday}
+                isLoading={startingCheckin}
+                disabled={startingCheckin}
+              >
+                Start Today&apos;s Check-in
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => router.push("/app/client/assignments")}>
               View Active Assignments
             </Button>
-            {/* TODO: add client feedback endpoint (GET /api/v1/feedback?clientId=...) */}
-            <Tooltip label="Coming soon">
-              <span className="inline-flex">
-                <Button variant="secondary" disabled>
-                  View Feedback
-                </Button>
-              </span>
-            </Tooltip>
+            {feedbackDisabledReason ? (
+              <Tooltip label={feedbackDisabledReason}>
+                <span className="inline-flex">
+                  <Button variant="secondary" disabled>
+                    Give Feedback
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={handleGiveFeedback}
+                isLoading={feedbackLoading}
+                disabled={feedbackLoading}
+              >
+                Give Feedback
+              </Button>
+            )}
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { Prisma, ResponseCompletionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AesGcm } from "../../common/crypto/aes-gcm";
 import { AuditService } from "../audit/audit.service";
+import { dateOnlyPartsFromUTC } from "../../reports/aer/aer-report.utils";
 
 type ReviewedFilter = "all" | "reviewed" | "unreviewed";
 type FlaggedFilter = "all" | "flagged" | "unflagged";
@@ -140,6 +141,35 @@ export class ResponsesService {
     }
     if (assignment.status !== "published") {
       throw new ForbiddenException("Assignment not published");
+    }
+
+    // ✅ Enforce one response per assignment per day (UTC date-only).
+    const todayParts = dateOnlyPartsFromUTC(new Date());
+    const dayStart = new Date(Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day, 0, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day, 23, 59, 59, 999));
+    const existing = await this.prisma.responses.findFirst({
+      where: {
+        assignment_id: assignment.id,
+        client_id: client.id,
+        created_at: { gte: dayStart, lte: dayEnd },
+      },
+      orderBy: { created_at: "asc" },
+      select: {
+        id: true,
+        assignment_id: true,
+        client_id: true,
+        voice_storage_key: true,
+        created_at: true,
+      },
+    });
+    if (existing) {
+      return {
+        id: existing.id,
+        assignmentId: existing.assignment_id,
+        clientId: existing.client_id,
+        voiceStorageKey: existing.voice_storage_key ?? null,
+        createdAt: existing.created_at?.toISOString?.() ?? existing.created_at,
+      };
     }
 
     const aes = AesGcm.fromEnv();
