@@ -11,6 +11,23 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  // GET /api/v1/version
+  @Get('version')
+  getVersion() {
+    const gitSha =
+      process.env.RENDER_GIT_COMMIT ||
+      process.env.GIT_COMMIT ||
+      process.env.GIT_SHA ||
+      'unknown';
+    const builtAt = process.env.BUILD_TIME || 'unknown';
+
+    return {
+      ok: true,
+      git_sha: gitSha,
+      built_at: builtAt,
+    };
+  }
+
   // GET /api/v1/csrf
   @Get('csrf')
   getCsrf(@Req() req: Request) {
@@ -21,4 +38,3 @@ export class AppController {
     return { csrfToken: csrfTokenFn() };
   }
 }
-

@@ -36,6 +36,6 @@ export class CookieJwtStrategy extends PassportStrategy(Strategy, 'cookie-jwt') 
       select: { id: true, role: true, is_disabled: true },
     });
     if (!user || user.is_disabled) throw new UnauthorizedException();
-    return { userId: user.id, id: user.id, role: user.role as UserRole };
+    return { userId: user.id, role: user.role as UserRole };
   }
 }
