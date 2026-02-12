@@ -15,8 +15,10 @@ export class ExternalAccessController {
   @Roles(UserRole.CLINIC_ADMIN, UserRole.admin)
   @Post("aer")
   async createAerToken(@Req() req: any, @Body() dto: CreateExternalAccessTokenDto) {
+    console.log("external-access user", req.user?.id, req.user?.role);
+    const userId = req.user?.userId ?? req.user?.id;
     return this.externalAccess.createAerToken({
-      userId: req.user.userId,
+      userId,
       role: req.user.role,
       clinicId: dto.clinicId,
       clientId: dto.clientId,
