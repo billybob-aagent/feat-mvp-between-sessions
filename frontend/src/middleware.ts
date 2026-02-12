@@ -3,6 +3,16 @@ import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const frontendHost = req.nextUrl.host;
+  let apiHost: string | null = null;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (apiBase) {
+    try {
+      apiHost = new URL(apiBase).host;
+    } catch {
+      apiHost = null;
+    }
+  }
 
   // allow public routes
   if (
@@ -18,6 +28,13 @@ export function middleware(req: NextRequest) {
 
   // protect app routes
   if (pathname.startsWith("/app")) {
+    // When frontend and API are on different hosts (e.g., Render public suffix),
+    // the browser cannot send API-domain cookies to the frontend domain.
+    // We skip cookie gating here and rely on backend auth + useMe() to enforce access.
+    if (apiHost && apiHost !== frontendHost) {
+      return NextResponse.next();
+    }
+
     if (!access && !refresh) {
       const url = req.nextUrl.clone();
       url.pathname = "/auth/login";
